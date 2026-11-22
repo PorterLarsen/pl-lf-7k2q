@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cache Lead Finder</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1f3a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lead Finder">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+:root{--bg:#f6f5f1;--panel:#fff;--fg:#1d211f;--muted:#6a716c;--line:#e2e0d8;--accent:#1f6b4a;--accent2:#e8f2ec;--warn:#b26b00;--bad:#b3261e;--hi:#d8efe2;--mid:#fbefd5;--lo:#ecebe6;--radius:10px}
+@media (prefers-color-scheme:dark){:root{--bg:#121513;--panel:#1b1f1c;--fg:#e9ece9;--muted:#9aa29c;--line:#2c322e;--accent:#5cc694;--accent2:#1d2e25;--hi:#1e3a2b;--mid:#3a2f17;--lo:#262a27}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:1000;background:var(--panel);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top) + 10px) 14px 0}
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between}
+h1{font-size:18px;margin:0}
+.status{font-size:12px;color:var(--muted)}
+button,select,input,textarea{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+nav{display:flex;gap:4px;margin-top:8px}
+nav button{flex:1;border:0;background:none;padding:9px 0;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;cursor:pointer}
+nav button.on{color:var(--accent);border-bottom-color:var(--accent)}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.filters input[type=search]{flex:1 1 180px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.filters select{padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.chk{display:flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
+.count{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+.card.flash{outline:2px solid var(--accent)}
+.row1{display:flex;gap:10px;align-items:flex-start}
+.pill{flex:none;min-width:46px;text-align:center;border-radius:999px;padding:3px 8px;font-weight:700;font-variant-numeric:tabular-nums}
+.pill.hi{background:var(--hi)}.pill.mid{background:var(--mid)}.pill.lo{background:var(--lo)}
+.addr{font-weight:650}
+.sub{font-size:13px;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tag{font-size:11px;border-radius:4px;padding:1px 6px;background:var(--accent2);color:var(--accent);font-weight:600}
+.tag.warn{background:var(--mid);color:var(--warn)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px 12px;margin:10px 0;font-size:13px}
+.facts div span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.facts div b{font-variant-numeric:tabular-nums;font-weight:600}
+.why{font-size:13px;color:var(--muted);margin:6px 0}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.links a{font-size:13px;text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:4px 8px;color:var(--accent)}
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.photos img{width:100%;border-radius:6px;background:var(--lo);aspect-ratio:16/10;object-fit:cover}
+.track{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;margin-top:6px}
+.track select{padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.track textarea{flex:1 1 200px;min-height:34px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);resize:vertical}
+details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
+#map{height:calc(100vh - 150px);min-height:380px;border-radius:var(--radius);border:1px solid var(--line)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.panel h2{font-size:16px;margin:0 0 8px}
+.wt{display:grid;grid-template-columns:150px 1fr 40px;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.note{font-size:13px;color:var(--muted)}
+.empty{text-align:center;padding:40px 16px;color:var(--muted)}
+.err{background:#fde8e6;color:#8c1d16;border-radius:8px;padding:10px;margin-bottom:10px;font-size:14px}
+.progress{height:3px;background:var(--line);margin:0 -14px}
+.progress div{height:100%;width:0;background:var(--accent);transition:width .3s}
+.more-btn{display:block;margin:10px auto}
+.num{width:84px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.morefilters{margin:-2px 0 10px}
+.morefilters summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;margin-bottom:8px}
+.badge{display:inline-block;background:var(--accent);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-left:4px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+.ltable{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+.ltable th{position:sticky;top:0;background:var(--panel);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;color:var(--muted);font-weight:600}
+.ltable th.on{color:var(--accent)}
+.ltable td{padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ltable td.n,.ltable th.n{text-align:right}
+.ltable tr:hover td{background:var(--accent2)}
+.ltable td a{color:var(--accent);text-decoration:none;font-weight:600}
+.tag.imp{background:#e7e3f7;color:#5131a8}
+@media (prefers-color-scheme:dark){.tag.imp{background:#2d2547;color:#c4b5fd}}
+.implist{margin:8px 0;font-size:14px}
+.implist div{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid var(--line);padding:6px 0}
+.contact{background:var(--accent2);border-radius:8px;padding:10px;margin:8px 0;font-size:14px}
+.contact h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.contact .who{font-weight:650}
+.contact .mail{white-space:pre-line;margin:2px 0 6px}
+.contact .acts{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.contact .acts a,.contact .acts button{font-size:13px;border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--panel);color:var(--accent);text-decoration:none;cursor:pointer}
+.contact .next{font-size:13px;color:var(--muted)}
+.contact .cf{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.contact .cf input{flex:1 1 150px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+.locnote{font-size:13px;color:var(--warn);margin-top:2px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><h1>Cache Lead Finder</h1><div class="status" id="status">No data yet</div></div>
+    <button class="btn primary" id="refresh">Refresh</button>
+  </div>
+  <nav><button data-view="list" class="on">Leads</button><button data-view="map">Map</button><button data-view="settings">Settings</button></nav>
+  <div class="progress"><div id="bar"></div></div>
+</header>
+<main>
+  <div id="error" class="err" hidden></div>
+
+  <section id="v-list">
+    <div class="kpis">
+      <div class="kpi"><b id="k-n">—</b><span>parcels behind on taxes</span></div>
+      <div class="kpi"><b id="k-owed">—</b><span>total back taxes</span></div>
+      <div class="kpi"><b id="k-ts">—</b><span id="k-ts-l">tax-sale eligible</span></div>
+      <div class="kpi"><b id="k-new">—</b><span>new since last refresh</span></div>
+    </div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search address, owner, parcel, notes…" aria-label="Search">
+      <label class="chk">Sort
+        <select id="sort" aria-label="Sort by">
+          <option value="score">Score</option><option value="total_due">Back taxes owed</option><option value="years_delinquent">Years behind</option>
+          <option value="mkt_value">Market value</option><option value="tax_to_value_pct">Taxes ÷ value</option><option value="acres">Lot size</option>
+          <option value="bldg_sqft">Building size</option><option value="built_yr">Year built</option><option value="owner_delinquent_parcels">Owner's parcel count</option>
+          <option value="first_seen">Date added to list</option><option value="full_address">Address (A–Z)</option><option value="city">City (A–Z)</option>
+        </select></label>
+      <button class="btn" id="dir" type="button" aria-label="Sort direction">↓ High to low</button>
+      <button class="btn" id="viewtoggle" type="button">Table view</button>
+    </div>
+    <div class="filters">
+      <select id="f-cat" aria-label="Type"><option value="">All types</option><option>Home</option><option>Multi-family</option><option>Land</option><option>Commercial / mixed</option><option>Other</option></select>
+      <select id="f-city" aria-label="City"><option value="">All cities</option></select>
+      <select id="f-status" aria-label="Status"><option value="">Any status</option><option>New</option><option>Researching</option><option>Contacted</option><option>Offer made</option><option>Pass</option></select>
+      <select id="f-min" aria-label="Minimum score"><option value="0">Any score</option><option value="50">Score 50+</option><option value="60">Score 60+</option><option value="70">Score 70+</option><option value="80">Score 80+</option></select>
+      <label class="chk"><input type="checkbox" id="f-ts"> Tax-sale eligible</label>
+      <label class="chk"><input type="checkbox" id="f-abs"> Absentee owner</label>
+      <label class="chk"><input type="checkbox" id="f-pass"> Hide passed</label>
+    </div>
+    <details class="morefilters" id="morefilters">
+      <summary>More filters <span id="mf-count"></span></summary>
+      <div class="filters">
+        <label class="chk">Value $<input type="number" id="f-vmin" placeholder="min" inputmode="numeric" class="num"> to <input type="number" id="f-vmax" placeholder="max" inputmode="numeric" class="num"></label>
+        <label class="chk">Owed $<input type="number" id="f-omin" placeholder="min" inputmode="numeric" class="num"> to <input type="number" id="f-omax" placeholder="max" inputmode="numeric" class="num"></label>
+        <label class="chk">Lot at least <input type="number" id="f-lot" placeholder="acres" step="0.05" inputmode="decimal" class="num"> ac</label>
+        <label class="chk">Building at least <input type="number" id="f-sqft" placeholder="sq ft" inputmode="numeric" class="num"></label>
+        <label class="chk">Built <input type="number" id="f-ymin" placeholder="after" inputmode="numeric" class="num"> to <input type="number" id="f-ymax" placeholder="before" inputmode="numeric" class="num"></label>
+        <select id="f-yrs" aria-label="Years behind"><option value="0">Any years behind</option><option value="2">2+ years behind</option><option value="3">3+ years behind</option><option value="4">4+ years behind</option></select>
+        <select id="f-tag" aria-label="Imported list"><option value="">Any imported list</option><option value="__any">On any imported list</option></select>
+        <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
+        <label class="chk"><input type="checkbox" id="f-phone"> Has phone or email</label>
+        <label class="chk"><input type="checkbox" id="f-oos"> Out-of-state owner</label>
+        <label class="chk"><input type="checkbox" id="f-multi"> Owner has 3+ parcels</label>
+        <label class="chk"><input type="checkbox" id="f-det"> Has lot &amp; building details</label>
+        <label class="chk"><input type="checkbox" id="f-new"> New since last refresh</label>
+        <button class="btn" id="f-clear" type="button">Clear all filters</button>
+      </div>
+    </details>
+    <div class="count" id="count"></div>
+    <div id="cards"></div>
+    <div class="tablewrap" id="tablewrap" hidden><table class="ltable" id="ltable"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+    <button class="btn more-btn" id="more" hidden>Show more</button>
+    <div class="empty" id="empty">Tap <b>Refresh</b> to pull every Cache County parcel with unpaid back taxes. The first load takes about a minute.</div>
+  </section>
+
+  <section id="v-map" hidden><div id="map"></div><p class="note">Dot color shows the score: green 75+, amber 60–74, gray below 60. Tap a dot for details.</p></section>
+
+  <section id="v-settings" hidden>
+    <div class="panel">
+      <h2>What matters most to you</h2>
+      <p class="note">Each slider sets how much that part counts toward the 0–100 score. The ranking updates as you move them.</p>
+      <div id="weights"></div>
+      <button class="btn" id="w-reset">Reset to default</button>
+    </div>
+    <div class="panel">
+      <h2>Add other lead lists</h2>
+      <p class="note">Import any spreadsheet saved as CSV — for example Notices of Default, trustee sales, probate cases, code violations, or an export from PropStream. It needs a column with the parcel ID (like 05-032-0007) or the street address. Matching properties get a tag and a score boost; properties not behind on taxes are added as extra leads. Lot and building details are added for them on the next Refresh when a parcel ID is given.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="imp-name" placeholder="List name, e.g. Notices of Default" style="flex:1 1 200px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)">
+        <label class="btn primary">Choose CSV file<input type="file" id="imp-file" accept=".csv,text/csv" hidden></label>
+      </div>
+      <div class="implist" id="implist"></div>
+    </div>
+    <div class="panel">
+      <h2>Street View photos (optional)</h2>
+      <p class="note">Paste a Google Maps API key with the Street View Static API and Maps Static API turned on, and each lead shows a street photo and a satellite photo. Restrict the key to this site's address in Google Cloud. Google charges about $7 per 1,000 images after its free monthly credit. The key stays on this device.</p>
+      <input type="password" id="gkey" placeholder="Google Maps API key" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)">
+    </div>
+    <div class="panel">
+      <h2>Your data</h2>
+      <p class="note">Leads, statuses and notes are saved on this device only.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="export">Download spreadsheet (CSV)</button>
+        <button class="btn" id="export-mail">Download mailing list (CSV)</button>
+        <button class="btn" id="export-notes">Back up my notes</button>
+        <label class="btn">Restore notes<input type="file" id="import-notes" accept=".json" hidden></label>
+        <button class="btn" id="clear">Clear saved leads</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Where the data comes from</h2>
+      <p class="note">Unpaid back taxes: Cache County Treasurer's public delinquent-tax map service. Lot size, building size, year built and market value: Utah's statewide tax-parcel layer (UGRC), updated yearly by the county assessor. Tax-sale eligible means taxes have gone unpaid long enough that the county can list the parcel at its May tax sale unless it's paid first. Market value is the assessor's figure, not an appraisal. Scores are for sorting only: check title, liens and condition before making an offer.</p>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+'use strict';
+/* ------------------------------------------------------------------ sources */
+const COUNTY = 'https://gis.cachecounty.gov/arcgis/rest/services/Treasurer';
+const BACKTAX = COUNTY + '/Delinquent_Taxes_5_years_Back/MapServer/0';
+const UNPAID = COUNTY + '/Delinquent_Taxes_Public_Red/MapServer/1';
+const LIR = 'https://services1.arcgis.com/99lidPhWCzftIe9K/ArcGIS/rest/services/Parcels_Cache_LIR/FeatureServer/0';
+const ENDPOINTS = window.CDF_ENDPOINTS || {BACKTAX, UNPAID, LIR};
+
+/* ------------------------------------------------------------------ storage */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('cdf_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('cdf_' + k, JSON.stringify(v)); } catch (e) { console.warn('save failed', e); } }
+};
+const DEFAULT_W = {distress: 1, type: 1, motivation: 1, location: 1, quality: 1, equity: 1, signals: 1};
+const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', motivation: 'Owner motivation', location: 'Location',
+  quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists'};
+const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
+  'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone'];
+const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone'];
+const TEXT_SORTS = new Set(['full_address', 'city']);
+let state = {
+  data: window.CDF_PRELOAD || store.get('data', null),   // {fetchedAt, backYear, rows, newIds, extraDetails}
+  rows: [],                                              // tax rows + imported extra leads, scored
+  seen: store.get('seen', {}),
+  track: store.get('track', {}),
+  imports: store.get('imports', []),                     // [{name, at, recs:[{pid, addr, city, owner}]}]
+  w: Object.assign({}, DEFAULT_W, store.get('weights', {})),
+  key: store.get('gkey', ''),
+  ui: Object.assign({sort: 'score', dir: 'desc', mode: 'cards', filters: {}}, store.get('ui', {})),
+  shown: 40, view: 'list'
+};
+
+/* ------------------------------------------------------------------ JSONP */
+let jsonpN = 0;
+function jsonp(url, params, timeout = 45000) {
+  return new Promise((resolve, reject) => {
+    const cb = '__cdf' + (++jsonpN) + '_' + Date.now();
+    const qs = new URLSearchParams(Object.assign({}, params, {f: 'json', callback: cb})).toString();
+    const s = document.createElement('script');
+    const done = (fn, v) => { clearTimeout(t); delete window[cb]; s.remove(); fn(v); };
+    const t = setTimeout(() => done(reject, new Error('Timed out reaching ' + new URL(url).host)), timeout);
+    window[cb] = (j) => j && j.error ? done(reject, new Error(j.error.message || 'Server error')) : done(resolve, j);
+    s.onerror = () => done(reject, new Error('Could not reach ' + new URL(url).host));
+    s.src = url + '/query?' + qs;
+    document.head.appendChild(s);
+  });
+}
+const pick = (a, name) => {
+  if (name in a) return a[name];
+  const k = Object.keys(a).find((k) => k.toLowerCase().endsWith('.' + name.toLowerCase()));
+  return k === undefined ? undefined : a[k];
+};
+const pickPref = (a, name, pref) => {
+  const k = Object.keys(a).find((k) => k.toLowerCase().endsWith(pref + '.' + name));
+  return k ? a[k] : pick(a, name);
+};
+async function allIds(layer, where) {
+  const j = await jsonp(layer, {where, returnIdsOnly: 'true'});
+  return (j.objectIds || []).sort((a, b) => a - b);
+}
+
+/* ------------------------------------------------------------------ fetch */
+function setProgress(p, msg) {
+  document.getElementById('bar').style.width = Math.round(p * 100) + '%';
+  if (msg) document.getElementById('status').textContent = msg;
+}
+function centroid(g) {
+  const r = g && g.rings && g.rings[0];
+  if (!r || !r.length) return [null, null];
+  let x = 0, y = 0; r.forEach((p) => { x += p[0]; y += p[1]; });
+  return [+(y / r.length).toFixed(6), +(x / r.length).toFixed(6)];
+}
+function backYear(d = new Date()) { return d.getMonth() === 11 ? d.getFullYear() : d.getFullYear() - 1; }
+
+async function fetchDetails(ids, onStep) {
+  const det = {};
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    try {
+      const j = await jsonp(ENDPOINTS.LIR, {where: 'PARCEL_ID IN (' + chunk.map((t) => "'" + String(t).replace(/'/g, '') + "'").join(',') + ')',
+        outFields: 'PARCEL_ID,PARCEL_ACRES,TOTAL_MKT_VALUE,LAND_MKT_VALUE,PROP_CLASS,BLDG_SQFT,FLOORS_CNT,BUILT_YR,EFFBUILT_YR,CONST_MATERIAL,SUBDIV_NAME', returnGeometry: 'false'});
+      (j.features || []).forEach((f) => {
+        const a = f.attributes, e = det[a.PARCEL_ID] || (det[a.PARCEL_ID] = {acres: a.PARCEL_ACRES, mkt_value: a.TOTAL_MKT_VALUE, land_value: a.LAND_MKT_VALUE, prop_class: a.PROP_CLASS, subdivision: a.SUBDIV_NAME, bldg_sqft: 0, floors: null, built_yr: null, construction: null});
+        if (a.BLDG_SQFT) {
+          e.bldg_sqft += a.BLDG_SQFT; e.floors = Math.max(e.floors || 0, a.FLOORS_CNT || 0) || null;
+          e.construction = e.construction || (a.CONST_MATERIAL ? String(a.CONST_MATERIAL).replace(/\s+/g, ' ').trim() : null);
+          if (a.BUILT_YR > 1800) e.built_yr = e.built_yr ? Math.min(e.built_yr, a.BUILT_YR) : a.BUILT_YR;
+        }
+      });
+    } catch (e) { console.warn('details', e); }
+    if (onStep) onStep(Math.min(i + 50, ids.length), ids.length);
+  }
+  Object.values(det).forEach((e) => { e.bldg_sqft = e.bldg_sqft || null; e.lot_sqft = e.acres ? Math.round(e.acres * 43560) : null; });
+  return det;
+}
+
+async function fetchAll() {
+  const by = backYear();
+  setProgress(0.03, 'Finding parcels behind on taxes…');
+  const ids = await allIds(ENDPOINTS.BACKTAX, '1=1');
+  if (!ids.length) throw new Error('The county returned no delinquent parcels.');
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const j = await jsonp(ENDPOINTS.BACKTAX, {objectIds: ids.slice(i, i + 100).join(','), outFields: '*', returnGeometry: 'true', outSR: '4326', geometryPrecision: '6'});
+    (j.features || []).forEach((f) => {
+      const a = f.attributes, [lat, lon] = centroid(f.geometry);
+      const r = {
+        tax_id: pickPref(a, 'tax_id', 'parcel_current'), total_due: +pick(a, 'all_yr_total_due') || 0,
+        city: pick(a, 'property_city_hs') || '', bldg_type: pick(a, 'building_specific_type_hs') || '', units: pick(a, 'total_units'),
+        address: pick(a, 'address_complete') || '', owner_address: pick(a, 'owner_address_complete') || '',
+        core_url: pick(a, 'core_owner_maps_url') || '', lat, lon, owed: []
+      };
+      for (let k = 1; k <= 5; k++) r.owed.push(+pick(a, 'back' + k + '_total') || 0);
+      if (r.tax_id) rows.push(r);
+    });
+    setProgress(0.05 + 0.4 * Math.min(1, (i + 100) / ids.length), `Downloading parcels… ${Math.min(i + 100, ids.length)} of ${ids.length}`);
+  }
+  try {
+    setProgress(0.47, 'Adding owner names…');
+    const oids = await allIds(ENDPOINTS.UNPAID, '1=1');
+    const names = {};
+    for (let i = 0; i < oids.length; i += 200) {
+      const j = await jsonp(ENDPOINTS.UNPAID, {objectIds: oids.slice(i, i + 200).join(','), outFields: '*', returnGeometry: 'false'});
+      (j.features || []).forEach((f) => { const t = pickPref(f.attributes, 'tax_id', 'parcel_current'); const n = pick(f.attributes, 'owner_name'); if (t && n) names[t] = n; });
+    }
+    rows.forEach((r) => { r.owner_name = names[r.tax_id] || ''; });
+  } catch (e) { console.warn('owner names', e); }
+  const taxIds = new Set(rows.map((r) => r.tax_id));
+  const importIds = [...new Set(state.imports.flatMap((l) => l.recs.map((x) => x.pid)).filter((p) => p && !taxIds.has(p)))];
+  const all = [...taxIds, ...importIds];
+  const det = await fetchDetails(all, (n, tot) => setProgress(0.5 + 0.48 * n / tot, `Adding lot & building details… ${n} of ${tot}`));
+  rows.forEach((r) => { const e = det[r.tax_id]; r.enriched = !!e; if (e) Object.assign(r, e); });
+  const extraDetails = {}; importIds.forEach((p) => { if (det[p]) extraDetails[p] = det[p]; });
+  return {fetchedAt: new Date().toISOString(), backYear: by, rows, extraDetails};
+}
+
+/* ------------------------------------------------------------------ imported lists */
+const digits = (s) => String(s || '').replace(/\D/g, '');
+const fmtPid = (s) => { const d = digits(s); return d.length === 9 ? `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}` : ''; };
+const ABBR = {NORTH: 'N', SOUTH: 'S', EAST: 'E', WEST: 'W', STREET: 'ST', DRIVE: 'DR', CIRCLE: 'CIR', LANE: 'LN', AVENUE: 'AVE', ROAD: 'RD', COURT: 'CT', PLACE: 'PL', BOULEVARD: 'BLVD', HIGHWAY: 'HWY', PARKWAY: 'PKWY', CENTER: 'CENTER'};
+const normAddr = (s) => String(s || '').split(',')[0].toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).map((w) => ABBR[w] || w).join(' ');
+function parseCsv(text) {
+  const out = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); out.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur !== '' || row.length) { row.push(cur); out.push(row); }
+  return out.filter((r) => r.some((v) => v.trim() !== ''));
+}
+function readImport(name, text) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new Error('The file has no data rows.');
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  const col = (...keys) => head.findIndex((h) => keys.some((k) => h.includes(k)));
+  const ip = col('parcel', 'apn', 'tax id', 'tax_id', 'serial', 'account');
+  const ia = col('property address', 'situs', 'site address', 'address', 'street');
+  const ic = col('property city', 'situs city', 'city');
+  const io = col('owner name', 'owner', 'name', 'decedent', 'defendant', 'trustor');
+  const iph = col('phone', 'mobile', 'cell', 'wireless', 'landline');
+  const iem = col('email', 'e-mail');
+  if (ip < 0 && ia < 0) throw new Error('No parcel ID or address column found. Name a column "Parcel ID" or "Address".');
+  const recs = rows.slice(1).map((r) => ({pid: ip >= 0 ? fmtPid(r[ip]) : '', addr: ia >= 0 ? (r[ia] || '').trim() : '', city: ic >= 0 ? (r[ic] || '').trim() : '', owner: io >= 0 ? (r[io] || '').trim() : '', phone: iph >= 0 ? (r[iph] || '').trim() : '', email: iem >= 0 ? (r[iem] || '').trim() : ''}))
+    .filter((x) => x.pid || x.addr);
+  return {name: name || 'Imported list', at: new Date().toISOString(), recs};
+}
+function buildRows() {
+  if (!state.data) { state.rows = []; return; }
+  const tax = state.data.rows.map((r) => Object.assign({}, r, {tags: [], imported: false}));
+  const byPid = new Map(tax.map((r) => [r.tax_id, r]));
+  const byAddr = new Map(); tax.forEach((r) => { const a = normAddr(r.address); if (a) byAddr.set(a, r); });
+  const extra = new Map();
+  state.imports.forEach((list) => list.recs.forEach((x) => {
+    let r = (x.pid && byPid.get(x.pid)) || (x.addr && byAddr.get(normAddr(x.addr)));
+    if (!r) {
+      const key = x.pid || 'ADDR:' + normAddr(x.addr);
+      r = extra.get(key);
+      if (!r) {
+        r = {tax_id: x.pid || '', import_key: key, address: x.addr ? x.addr + (x.city ? ', ' + x.city.toUpperCase() : '') : '', city: (x.city || '').toUpperCase(),
+          bldg_type: '', owner_name: x.owner, owner_address: '', owed: [0, 0, 0, 0, 0], total_due: 0, lat: null, lon: null, tags: [], imported: true};
+        const d = x.pid && state.data.extraDetails && state.data.extraDetails[x.pid];
+        r.enriched = !!d; if (d) Object.assign(r, d);
+        extra.set(key, r); if (x.pid) byPid.set(x.pid, r);
+      }
+    }
+    if (!r.tags.includes(list.name)) r.tags.push(list.name);
+    if (!r.owner_name && x.owner) r.owner_name = x.owner;
+    if (x.phone && !r.phone) r.phone = x.phone;
+    if (x.email && !r.email) r.email = x.email;
+  }));
+  state.rows = tax.concat([...extra.values()]);
+}
+
+/* ------------------------------------------------------------------ owners & contact */
+function ownerType(n) {
+  n = ' ' + String(n || '').toUpperCase() + ' ';
+  if (!n.trim()) return '';
+  if (/ ESTATE | HEIRS | DECEASED | ESTATE OF /.test(n)) return 'Estate';
+  if (/ TRUST | TRS | TRUSTEE| TR /.test(n) || / CO-TRS /.test(n)) return 'Trust';
+  if (/ CITY | COUNTY | STATE OF | UNITED STATES | SCHOOL DIST| CHURCH | WARD | DISTRICT | TOWN OF /.test(n)) return 'Government / church';
+  if (/ LLC | L L C | INC | CORP | CORPORATION | COMPANY | CO | LP | LTD | LLP | PARTNERSHIP | HOLDINGS | PROPERTIES | INVESTMENTS | ENTERPRISES | ASSETS | DEVELOPMENT | BANK | CAPITAL | FUND /.test(n)) return 'Business';
+  return 'Individual';
+}
+const MULTI_CITY = ['SALT LAKE CITY', 'NORTH LOGAN', 'HYDE PARK', 'RIVER HEIGHTS', 'SOUTH JORDAN', 'WEST JORDAN', 'WEST HAVEN', 'WEST VALLEY CITY', 'WASHINGTON TR', 'WASHINGTON TERRACE', 'PLEASANT GROVE', 'AMERICAN FORK', 'CEDAR CITY', 'PARK CITY', 'SPANISH FORK', 'NORTH SALT LAKE', 'SOUTH OGDEN', 'NORTH OGDEN', 'BRIGHAM CITY', 'GREEN RIVER', 'REDONDO BEACH', 'TWIN FALLS', 'LAS VEGAS', 'SAN DIEGO', 'LOS ANGELES', 'SAN JOSE'];
+function splitMail(oa) {
+  oa = String(oa || '').replace(/\s+/g, ' ').trim();
+  const m = oa.match(/^(.*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+  if (!m) return {street: oa, city: '', state: '', zip: ''};
+  let body = m[1], city = '';
+  const mc = MULTI_CITY.find((c) => body.endsWith(' ' + c));
+  if (mc) city = mc; else city = body.split(' ').pop();
+  return {street: body.slice(0, body.length - city.length).trim(), city, state: m[2], zip: m[3]};
+}
+function mailingLabel(r) {
+  const s = splitMail(r.owner_address);
+  return [r.owner_name || 'Current Owner', s.street, [s.city && title(s.city), s.state].filter(Boolean).join(', ') + (s.zip ? ' ' + s.zip : '')].filter(Boolean).join('\n');
+}
+const BIZ_SEARCH = 'https://businessregistration.utah.gov/EntitySearch/OnlineEntitySearch';
+const XCHANGE = 'https://www.utcourts.gov/en/court-records-publications/records/xchange.html';
+function nextStep(r) {
+  switch (r.owner_type) {
+    case 'Business': return 'Business owner: search its name in the Utah business registry to find the registered agent and the managers or members, then mail or call them.';
+    case 'Trust': return 'Trust owner: write to the trustee at the tax-bill address. The trustee is usually named on the recorded deed (see County record).';
+    case 'Estate': return 'Estate owner: look up the probate case in court records to find the personal representative, who has the authority to sell.';
+    case 'Government / church': return 'Public or church owner: contact its property or facilities office.';
+    case 'Individual': return 'Individual owner: send a letter to the tax-bill address. For a phone number, run the mailing list through a skip-tracing service and import the results.';
+    default: return 'Owner name appears after Refresh. Until then, write to the tax-bill address addressed to Current Owner.';
+  }
+}
+async function copyText(t, btn) {
+  try { await navigator.clipboard.writeText(t); const o = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = o; }, 1500); }
+  catch (e) { prompt('Copy this:', t); }
+}
+async function nearestAddress(r, out, btn) {
+  btn.disabled = true; out.textContent = 'Looking up…';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&lat=${r.lat}&lon=${r.lon}`, {headers: {'Accept-Language': 'en'}});
+    const j = await res.json(); const a = j.address || {};
+    const txt = [a.house_number && a.road ? a.house_number + ' ' + a.road : a.road, a.city || a.town || a.village || a.hamlet, a.county].filter(Boolean).join(', ');
+    out.textContent = txt ? 'Nearest mapped address: ' + txt : 'No nearby address found.';
+    saveTrack(r.uid, {nearest: out.textContent});
+  } catch (e) { out.textContent = 'Lookup failed. Use the map links instead.'; }
+  btn.disabled = false;
+}
+
+/* ------------------------------------------------------------------ scoring (same rules as cache_distress_finder.py, plus imported lists) */
+const TYPE_POINTS = {'RES-SFR': 25, 'RES-Town House': 23, 'RES-Twin Home': 23, 'RES-Condo': 20, 'RES-Duplex': 25, 'RES-3 Plex': 25, 'RES-4 Plex': 25,
+  'RES-SFR/Apt': 25, 'RES-SFR/Multi': 25, 'RES-Low Rise Multi': 22, 'RES-Mixed Use': 20, 'MIX-Mixed Use': 18, 'RES-Land Vacant': 15, 'SEC-Cabin': 12};
+const CORE = new Set(['LOGAN', 'NORTH LOGAN', 'PROVIDENCE', 'RIVER HEIGHTS', 'NIBLEY', 'HYDE PARK', 'SMITHFIELD', 'MILLVILLE']);
+const MID = new Set(['HYRUM', 'WELLSVILLE', 'RICHMOND', 'MENDON', 'PARADISE', 'LEWISTON']);
+const typePts = (t) => TYPE_POINTS[t] ?? (t.startsWith('COM') ? 15 : t.startsWith('AGR') ? 6 : 3);
+function category(t) {
+  if (['RES-SFR', 'RES-Town House', 'RES-Twin Home', 'RES-Condo'].includes(t)) return 'Home';
+  if (['RES-Duplex', 'RES-3 Plex', 'RES-4 Plex', 'RES-SFR/Apt', 'RES-SFR/Multi', 'RES-Low Rise Multi'].includes(t)) return 'Multi-family';
+  if (t === 'RES-Land Vacant') return 'Land';
+  if (t.startsWith('COM') || t.startsWith('MIX') || t === 'RES-Mixed Use') return 'Commercial / mixed';
+  return 'Other';
+}
+const ownerState = (oa) => ((oa || '').match(/,\s*([A-Z]{2})\s+\d{5}/) || [])[1] || '';
+const ownerCity = (oa) => (((oa || '').match(/\s([A-Z][A-Z .]+),\s*[A-Z]{2}\s+\d{5}/) || [])[1] || '').trim();
+function isAbsentee(addr, city, oa) {
+  oa = (oa || '').toUpperCase(); const street = (addr || '').split(',')[0].trim().toUpperCase();
+  if (!oa || !street) return false;
+  if (oa.startsWith('PO BOX')) { const tail = (addr || '').split(',').pop().trim().toUpperCase(); const oc = ownerCity(oa); return oc !== (city || '').toUpperCase() && oc !== tail; }
+  const num = street.split(/\s+/)[0];
+  return !(/^\d+$/.test(num) && oa.split(/\s+/)[0] === num);
+}
+function scoreAll() {
+  buildRows();
+  const rows = state.rows, by = state.data ? state.data.backYear : backYear(), w = state.w, haveImports = state.imports.length > 0;
+  const port = {};
+  rows.forEach((r) => { if (r.owner_address) port[r.owner_address] = (port[r.owner_address] || 0) + 1; });
+  rows.forEach((r) => {
+    const parts = [], why = [];
+    const add = (k, pts, poss) => parts.push([w[k], pts, poss]);
+    const n = r.owed.filter((v) => v > 0.005).length;
+    const oldestIdx = r.owed.reduce((m, v, i) => v > 0.005 ? i : m, -1);
+    r.years_delinquent = n;
+    r.oldest_year_owed = oldestIdx >= 0 ? by - oldestIdx : null;
+    r.tax_sale_eligible = r.oldest_year_owed !== null && r.oldest_year_owed <= by - 3;
+    add('distress', ({1: 8, 2: 16, 3: 24})[n] ?? (n >= 4 ? 30 : 0), 30);
+    why.push(n ? n + ' yr behind on taxes' : 'taxes current');
+    add('distress', r.tax_sale_eligible ? 5 : 0, 5);
+    if (r.tax_sale_eligible) why.push('tax-sale eligible May ' + (by + 2));
+    r.category = category(r.bldg_type);
+    if (r.bldg_type) add('type', typePts(r.bldg_type), 25);
+    r.absentee_owner = isAbsentee(r.address, r.city, r.owner_address);
+    r.owner_state = ownerState(r.owner_address);
+    r.owner_delinquent_parcels = port[r.owner_address] || 1;
+    r.owner_type = ownerType(r.owner_name);
+    const tk = state.track[r.tax_id || r.import_key] || {};
+    r.phone = tk.phone || r.phone || ''; r.email = tk.email || r.email || '';
+    if (r.owner_address) {
+      let m = 0;
+      if (r.absentee_owner) { m += 10; why.push('absentee owner'); }
+      if (r.owner_state && r.owner_state !== 'UT') { m += 5; why.push('owner in ' + r.owner_state); }
+      if (r.owner_delinquent_parcels >= 3) { m += 5; why.push('owner has ' + r.owner_delinquent_parcels + ' delinquent parcels'); }
+      add('motivation', m, 20);
+    }
+    const c = (r.city || '').toUpperCase();
+    if (c) add('location', CORE.has(c) ? 10 : MID.has(c) ? 6 : 3, 10);
+    if (r.acres != null) add('quality', r.acres >= 0.25 ? 4 : r.acres >= 0.12 ? 2 : 1, 4);
+    if (r.bldg_sqft) add('quality', r.bldg_sqft >= 1500 ? 3 : r.bldg_sqft >= 1000 ? 2 : 1, 3);
+    if (r.built_yr) add('quality', r.built_yr >= 1980 ? 3 : r.built_yr >= 1950 ? 2 : 1, 3);
+    r.tax_to_value_pct = null;
+    if (r.mkt_value) {
+      const ratio = r.total_due / r.mkt_value;
+      add('equity', ratio < 0.02 ? 10 : ratio < 0.05 ? 7 : ratio < 0.15 ? 4 : 1, 10);
+      r.tax_to_value_pct = +(100 * ratio).toFixed(2);
+      if (r.mkt_value >= 150000 && ratio < 0.05) why.push('strong equity');
+    }
+    if (haveImports) {
+      add('signals', Math.min(15, r.tags.length * 10), 15);
+      if (r.tags.length) why.push('on ' + r.tags.join(', '));
+    }
+    const got = parts.reduce((s, [wt, p]) => s + wt * p, 0), poss = parts.reduce((s, [wt, , q]) => s + wt * q, 0);
+    r.score = poss ? +(100 * got / poss).toFixed(1) : 0;
+    r.score_reasons = why.join('; ');
+    r.first_seen = state.seen[r.tax_id] || '';
+    links(r);
+  });
+  rows.sort((a, b) => b.score - a.score || b.total_due - a.total_due);
+  rows.forEach((r, i) => { r.rank = i + 1; r.uid = r.tax_id || r.import_key; });
+}
+const title = (s) => String(s || '').toLowerCase().replace(/\b\w/g, (ch) => ch.toUpperCase());
+function links(r) {
+  const street = (r.address || '').split(',')[0].trim();
+  let city = title(r.city || (r.address || '').split(',').slice(1).join(' ').trim());
+  if (city === 'Unincorporated County') city = title((r.address || '').split(',').pop().trim()) || 'Cache County';
+  r.full_address = street ? `${title(street)}, ${city || 'Cache County'}, UT` : '';
+  const enc = encodeURIComponent;
+  if (r.lat) {
+    const ll = r.lat + ',' + r.lon;
+    r.map_url = 'https://www.google.com/maps/search/?api=1&query=' + ll;
+    r.streetview_url = 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + ll;
+    r.satellite_url = `https://www.google.com/maps/@${ll},19z/data=!3m1!1e3`;
+  } else if (r.full_address) {
+    r.map_url = 'https://www.google.com/maps/search/?api=1&query=' + enc(r.full_address); r.streetview_url = r.satellite_url = '';
+  } else r.map_url = r.streetview_url = r.satellite_url = '';
+  r.zillow_url = r.full_address ? 'https://www.zillow.com/homes/' + enc(r.full_address) + '_rb/' : '';
+  r.county_url = /^https?:\/\//.test(r.core_url || '') ? r.core_url : 'https://core.cachecounty.gov/';
+}
+
+/* ------------------------------------------------------------------ filter & sort */
+const $ = (id) => document.getElementById(id);
+const fmtUsd = (v, d = 0) => v == null ? '—' : '$' + (+v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmtN = (v) => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const isNew = (r) => !!(state.data && state.data.newIds && state.data.newIds.includes(r.tax_id));
+const numVal = (id) => { const v = $(id).value.trim(); return v === '' ? null : +v; };
+
+function filtered() {
+  const q = $('q').value.trim().toLowerCase(), cat = $('f-cat').value, city = $('f-city').value, st = $('f-status').value, min = +$('f-min').value;
+  const vmin = numVal('f-vmin'), vmax = numVal('f-vmax'), omin = numVal('f-omin'), omax = numVal('f-omax'), lot = numVal('f-lot'), sqft = numVal('f-sqft'),
+    ymin = numVal('f-ymin'), ymax = numVal('f-ymax'), yrs = +$('f-yrs').value, tag = $('f-tag').value;
+  const out = state.rows.filter((r) => {
+    const t = state.track[r.uid] || {}, status = t.status || 'New';
+    if (cat && r.category !== cat) return false;
+    if (city && r.city !== city) return false;
+    if (st && status !== st) return false;
+    if (r.score < min) return false;
+    if ($('f-ts').checked && !r.tax_sale_eligible) return false;
+    if ($('f-abs').checked && !r.absentee_owner) return false;
+    if ($('f-pass').checked && status === 'Pass') return false;
+    if (vmin != null && !(r.mkt_value >= vmin)) return false;
+    if (vmax != null && !(r.mkt_value <= vmax)) return false;
+    if (omin != null && !(r.total_due >= omin)) return false;
+    if (omax != null && !(r.total_due <= omax)) return false;
+    if (lot != null && !(r.acres >= lot)) return false;
+    if (sqft != null && !(r.bldg_sqft >= sqft)) return false;
+    if (ymin != null && !(r.built_yr >= ymin)) return false;
+    if (ymax != null && !(r.built_yr <= ymax)) return false;
+    if (yrs && r.years_delinquent < yrs) return false;
+    if (tag === '__any' && !r.tags.length) return false;
+    if (tag && tag !== '__any' && !r.tags.includes(tag)) return false;
+    if ($('f-oos').checked && !(r.owner_state && r.owner_state !== 'UT')) return false;
+    if ($('f-multi').checked && r.owner_delinquent_parcels < 3) return false;
+    if ($('f-det').checked && !r.enriched) return false;
+    if ($('f-new').checked && !isNew(r)) return false;
+    if ($('f-otype').value && r.owner_type !== $('f-otype').value) return false;
+    if ($('f-phone').checked && !(r.phone || r.email)) return false;
+    if (q && ![r.full_address, r.owner_name, r.owner_address, r.tax_id, r.bldg_type, t.note, r.tags.join(' '), r.phone, r.email].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const k = state.ui.sort, sign = state.ui.dir === 'asc' ? 1 : -1;
+  return out.sort((a, b) => {
+    const x = a[k], y = b[k], xe = x == null || x === '', ye = y == null || y === '';
+    if (xe && ye) return a.rank - b.rank;
+    if (xe) return 1; if (ye) return -1;                                     // blanks always last
+    const c = TEXT_SORTS.has(k) || k === 'first_seen' ? String(x).localeCompare(String(y)) : x - y;
+    return c ? sign * c : a.rank - b.rank;
+  });
+}
+
+/* ------------------------------------------------------------------ rendering */
+function renderKpis() {
+  const tax = state.rows.filter((r) => r.total_due > 0);
+  $('k-n').textContent = state.data ? fmtN(tax.length) : '—';
+  $('k-owed').textContent = state.data ? fmtUsd(tax.reduce((s, r) => s + r.total_due, 0)) : '—';
+  $('k-ts').textContent = state.data ? fmtN(tax.filter((r) => r.tax_sale_eligible).length) : '—';
+  if (state.data) $('k-ts-l').textContent = 'eligible for May ' + (state.data.backYear + 2) + ' tax sale';
+  $('k-new').textContent = state.data ? (state.data.newIds ? fmtN(state.data.newIds.length) : 'first load') : '—';
+}
+function linkList(r) {
+  return [[r.streetview_url, 'Street View'], [r.satellite_url, 'Satellite'], [r.map_url, 'Map'], [r.zillow_url, 'Zillow'], [r.county_url, 'County record'],
+    ['https://www.utcourts.gov/en/court-records-publications/records/xchange.html', 'Court search']].filter(([h]) => h && /^https?:\/\//.test(h));
+}
+function card(r) {
+  const c = el('div', 'card'); c.id = 'p-' + r.uid;
+  const t = state.track[r.uid] || {};
+  const top = el('div', 'row1');
+  top.append(el('div', 'pill ' + (r.score >= 75 ? 'hi' : r.score >= 60 ? 'mid' : 'lo'), r.score.toFixed(1)));
+  const head = el('div');
+  head.append(el('div', 'addr', '#' + r.rank + '  ' + (r.full_address || 'No street address')));
+  head.append(el('div', 'sub', [r.bldg_type || (r.imported ? 'From your list' : 'Unclassified'), r.tax_id ? 'Parcel ' + r.tax_id : ''].filter(Boolean).join(' · ')));
+  const tags = el('div', 'tags');
+  if (isNew(r)) tags.append(el('span', 'tag', 'NEW'));
+  if (r.tax_sale_eligible) tags.append(el('span', 'tag warn', 'Tax sale May ' + (state.data.backYear + 2)));
+  if (r.absentee_owner) tags.append(el('span', 'tag', 'Absentee owner'));
+  if (r.owner_delinquent_parcels >= 3) tags.append(el('span', 'tag', r.owner_delinquent_parcels + ' parcels, same owner'));
+  r.tags.forEach((g) => tags.append(el('span', 'tag imp', g)));
+  head.append(tags); top.append(head); c.append(top);
+
+  const facts = el('div', 'facts');
+  const fact = (k, v) => { const d = el('div'); d.append(el('span', null, k), el('b', null, v)); facts.append(d); };
+  fact('Back taxes', r.total_due ? fmtUsd(r.total_due, 2) : 'None');
+  fact('Years behind', String(r.years_delinquent) + (r.oldest_year_owed ? ' (since ' + r.oldest_year_owed + ')' : ''));
+  fact('Lot', r.acres != null ? (+r.acres).toFixed(2) + ' ac · ' + fmtN(r.lot_sqft) + ' sq ft' : '—');
+  fact('Building', r.bldg_sqft ? fmtN(r.bldg_sqft) + ' sq ft' + (r.floors ? ' · ' + r.floors + ' fl' : '') : '—');
+  fact('Built', r.built_yr || '—');
+  fact('Market value', fmtUsd(r.mkt_value));
+  fact('Land value', fmtUsd(r.land_value));
+  fact('Taxes ÷ value', r.tax_to_value_pct != null ? r.tax_to_value_pct + '%' : '—');
+  c.append(facts);
+  c.append(el('div', 'why', 'Why it ranks: ' + r.score_reasons));
+
+  // location for parcels with no street address
+  if (!r.full_address || /^no street/i.test(r.full_address)) {
+    const ln0 = el('div', 'locnote');
+    ln0.textContent = r.lat ? `No street address on file — parcel is at ${r.lat.toFixed(5)}, ${r.lon.toFixed(5)} (${title(r.city) || 'Cache County'}). Use Map, Satellite or Street View below.` : 'No street address or map position on file yet — tap Refresh to load the parcel location.';
+    c.append(ln0);
+    if (r.lat && !window.CDF_PRELOAD) {
+      const out = el('div', 'sub', (state.track[r.uid] || {}).nearest || '');
+      const b = el('button', 'btn', 'Find nearest address'); b.type = 'button'; b.style.marginTop = '4px';
+      b.onclick = () => nearestAddress(r, out, b); c.append(b, out);
+    }
+  }
+
+  // owner contact
+  const ct = el('div', 'contact');
+  ct.append(el('h4', null, 'Owner contact'));
+  ct.append(el('div', 'who', (r.owner_name || 'Owner name not loaded yet') + (r.owner_type ? '  ·  ' + r.owner_type : '')));
+  if (r.owner_address) ct.append(el('div', 'mail', 'Tax bill mailed to:\n' + mailingLabel(r).split('\n').slice(1).join('\n')));
+  const acts = el('div', 'acts');
+  if (r.owner_address) { const b = el('button', null, 'Copy mailing label'); b.type = 'button'; b.onclick = () => copyText(mailingLabel(r), b); acts.append(b); }
+  if (r.phone) { const a = el('a', null, 'Call ' + r.phone); a.href = 'tel:' + r.phone.replace(/[^\d+]/g, ''); acts.append(a); const s2 = el('a', null, 'Text'); s2.href = 'sms:' + r.phone.replace(/[^\d+]/g, ''); acts.append(s2); }
+  if (r.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) { const a = el('a', null, 'Email'); a.href = 'mailto:' + r.email; acts.append(a); }
+  if (r.owner_type === 'Business' || r.owner_type === 'Trust') {
+    const b = el('button', null, 'Copy name'); b.type = 'button'; b.onclick = () => copyText(r.owner_name, b); acts.append(b);
+    const a = el('a', null, 'Utah business search'); a.href = BIZ_SEARCH; a.target = '_blank'; a.rel = 'noopener'; acts.append(a);
+  }
+  if (r.owner_type === 'Estate' || r.owner_type === 'Individual') { const a = el('a', null, 'Court records'); a.href = XCHANGE; a.target = '_blank'; a.rel = 'noopener'; acts.append(a); }
+  ct.append(acts);
+  ct.append(el('div', 'next', nextStep(r)));
+  const cf = el('div', 'cf');
+  const ph = el('input'); ph.type = 'tel'; ph.placeholder = 'Phone'; ph.value = r.phone || ''; ph.setAttribute('aria-label', 'Owner phone');
+  const em = el('input'); em.type = 'email'; em.placeholder = 'Email'; em.value = r.email || ''; em.setAttribute('aria-label', 'Owner email');
+  ph.onchange = () => { saveTrack(r.uid, {phone: ph.value.trim()}); r.phone = ph.value.trim(); };
+  em.onchange = () => { saveTrack(r.uid, {email: em.value.trim()}); r.email = em.value.trim(); };
+  cf.append(ph, em); ct.append(cf);
+  c.append(ct);
+
+  if (state.key && (r.lat || r.full_address)) {
+    const loc = encodeURIComponent(r.lat ? r.lat + ',' + r.lon : r.full_address), k = encodeURIComponent(state.key);
+    const ph = el('div', 'photos');
+    const i1 = el('img'); i1.loading = 'lazy'; i1.alt = 'Street View of ' + (r.full_address || r.tax_id);
+    i1.src = `https://maps.googleapis.com/maps/api/streetview?size=480x300&location=${loc}&source=outdoor&key=${k}`;
+    const i2 = el('img'); i2.loading = 'lazy'; i2.alt = 'Satellite view of ' + (r.full_address || r.tax_id);
+    i2.src = `https://maps.googleapis.com/maps/api/staticmap?center=${loc}&zoom=19&size=480x300&maptype=satellite&markers=size:small|${loc}&key=${k}`;
+    ph.append(i1, i2); c.append(ph);
+  }
+  const ln = el('div', 'links');
+  linkList(r).forEach(([h, l]) => { const a = el('a', null, l); a.href = h; a.target = '_blank'; a.rel = 'noopener'; ln.append(a); });
+  c.append(ln);
+
+  const more = el('details', 'more');
+  more.append(el('summary', null, 'Owner & tax detail'));
+  const d = el('div', 'facts');
+  const f2 = (k, v) => { const x = el('div'); x.append(el('span', null, k), el('b', null, v || '—')); d.append(x); };
+  f2('Owner state', r.owner_state); f2('Owner\'s delinquent parcels', String(r.owner_delinquent_parcels));
+  r.owed.forEach((v, i) => { if (v > 0) f2('Owed for ' + (state.data.backYear - i), fmtUsd(v, 2)); });
+  f2('Construction', r.construction); f2('Subdivision', r.subdivision); f2('Units', r.units != null ? String(r.units) : '');
+  f2('First on list', r.first_seen);
+  more.append(d); c.append(more);
+
+  const tr = el('div', 'track');
+  const sel = el('select'); sel.setAttribute('aria-label', 'Lead status');
+  ['New', 'Researching', 'Contacted', 'Offer made', 'Pass'].forEach((s) => sel.append(new Option(s, s)));
+  sel.value = t.status || 'New';
+  sel.onchange = () => saveTrack(r.uid, {status: sel.value});
+  const note = el('textarea'); note.placeholder = 'Notes'; note.value = t.note || ''; note.setAttribute('aria-label', 'Notes');
+  note.onchange = () => saveTrack(r.uid, {note: note.value});
+  tr.append(sel, note); c.append(tr);
+  return c;
+}
+function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[id], patch); store.set('track', state.track); }
+
+const TCOLS = [['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
+  ['years_delinquent', 'Yrs', 'n'], ['acres', 'Lot ac', 'n'], ['bldg_sqft', 'Bldg sq ft', 'n'], ['built_yr', 'Built', 'n'], ['mkt_value', 'Value', 'n'],
+  ['tax_to_value_pct', 'Tax ÷ val', 'n'], ['owner_state', 'Owner'], ['status', 'Status']];
+function renderTable(rows) {
+  const th = $('thead');
+  th.replaceChildren(...TCOLS.map(([k, label, cls]) => {
+    const h = el('th', (cls || '') + (state.ui.sort === k ? ' on' : ''), label + (state.ui.sort === k ? (state.ui.dir === 'asc' ? ' ▲' : ' ▼') : ''));
+    if (k !== 'status') h.onclick = () => { if (state.ui.sort === k) state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; else { state.ui.sort = k === 'rank' ? 'score' : k; state.ui.dir = TEXT_SORTS.has(k) ? 'asc' : 'desc'; } saveUi(); syncSortUi(); renderList(); };
+    return h;
+  }));
+  $('tbody').replaceChildren(...rows.slice(0, state.shown).map((r) => {
+    const tr = el('tr'), t = state.track[r.uid] || {};
+    const td = (v, cls) => { const x = el('td', cls, v); tr.append(x); return x; };
+    td(String(r.rank), 'n'); td(r.score.toFixed(1), 'n');
+    const a = el('a', null, r.full_address || r.tax_id || 'No address'); a.href = '#'; a.onclick = (ev) => { ev.preventDefault(); openLead(r.uid, true); };
+    const ad = el('td'); ad.append(a); tr.append(ad);
+    td(r.category); td(r.total_due ? fmtUsd(r.total_due) : '—', 'n'); td(String(r.years_delinquent), 'n');
+    td(r.acres != null ? (+r.acres).toFixed(2) : '—', 'n'); td(fmtN(r.bldg_sqft), 'n'); td(r.built_yr ? String(r.built_yr) : '—', 'n');
+    td(fmtUsd(r.mkt_value), 'n'); td(r.tax_to_value_pct != null ? r.tax_to_value_pct + '%' : '—', 'n');
+    td((r.owner_state || '—') + (r.absentee_owner ? ' · away' : '')); td(t.status || 'New');
+    return tr;
+  }));
+}
+
+function renderList() {
+  renderKpis();
+  const rows = filtered();
+  $('empty').hidden = !!state.data;
+  $('count').textContent = state.data ? `${rows.length} of ${state.rows.length} properties match` : '';
+  const table = state.ui.mode === 'table';
+  $('cards').hidden = table; $('tablewrap').hidden = !table || !state.data;
+  if (table) renderTable(rows); else $('cards').replaceChildren(...rows.slice(0, state.shown).map(card));
+  $('more').hidden = rows.length <= state.shown;
+  const n = MORE.filter((id) => { const e = $(id); return e.type === 'checkbox' ? e.checked : e.value && e.value !== '0'; }).length;
+  $('mf-count').replaceChildren(...(n ? [el('span', 'badge', String(n))] : []));
+  if (state.view === 'map') renderMap();
+}
+function fillCities() {
+  const s = $('f-city'), cur = s.value || (state.ui.filters['f-city'] || '');
+  const cities = [...new Set(state.rows.map((r) => r.city).filter(Boolean))].sort();
+  s.replaceChildren(new Option('All cities', ''), ...cities.map((c) => new Option(title(c), c)));
+  s.value = cities.includes(cur) ? cur : '';
+  const tg = $('f-tag'), curT = tg.value || (state.ui.filters['f-tag'] || '');
+  const names = state.imports.map((l) => l.name);
+  tg.replaceChildren(new Option('Any imported list', ''), new Option('On any imported list', '__any'), ...names.map((n) => new Option('On: ' + n, n)));
+  tg.value = curT === '__any' || names.includes(curT) ? curT : '';
+}
+function syncSortUi() {
+  $('sort').value = state.ui.sort;
+  const text = TEXT_SORTS.has(state.ui.sort), date = state.ui.sort === 'first_seen';
+  $('dir').textContent = state.ui.dir === 'asc' ? (text ? '↑ A to Z' : date ? '↑ Oldest first' : '↑ Low to high') : (text ? '↓ Z to A' : date ? '↓ Newest first' : '↓ High to low');
+  $('viewtoggle').textContent = state.ui.mode === 'table' ? 'Card view' : 'Table view';
+}
+function saveUi() {
+  state.ui.filters = {};
+  FILTERS.forEach((id) => { const e = $(id); state.ui.filters[id] = e.type === 'checkbox' ? e.checked : e.value; });
+  store.set('ui', state.ui);
+}
+function restoreUi() {
+  FILTERS.forEach((id) => { const e = $(id), v = state.ui.filters[id]; if (v === undefined) return; if (e.type === 'checkbox') e.checked = !!v; else e.value = v; });
+  if (MORE.some((id) => { const e = $(id); return e.type === 'checkbox' ? e.checked : e.value && e.value !== '0'; })) $('morefilters').open = true;
+  syncSortUi();
+}
+
+/* ------------------------------------------------------------------ map */
+let map, layer;
+function renderMap() {
+  if (typeof L === 'undefined') { $('map').textContent = 'The map library could not load. Check your connection.'; return; }
+  if (!map) {
+    map = L.map('map').setView([41.74, -111.83], 11);
+    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'});
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, attribution: 'Imagery © Esri'});
+    streets.addTo(map); L.control.layers({Streets: streets, Satellite: sat}).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  setTimeout(() => map.invalidateSize(), 50);
+  layer.clearLayers();
+  const pts = filtered().filter((r) => r.lat);
+  pts.forEach((r) => {
+    const col = r.score >= 75 ? '#1f8a55' : r.score >= 60 ? '#d08a00' : '#8b918d';
+    const m = L.circleMarker([r.lat, r.lon], {radius: 7, color: '#fff', weight: 1.5, fillColor: col, fillOpacity: 0.95}).addTo(layer);
+    const box = el('div'); box.append(el('b', null, r.score.toFixed(1) + ' · ' + (r.full_address || r.tax_id)), el('br'),
+      document.createTextNode(`${r.bldg_type || 'Unclassified'} · owes ${fmtUsd(r.total_due)} · ${r.years_delinquent} yr`), el('br'));
+    const a = el('a', null, 'Open lead'); a.href = '#'; a.onclick = (ev) => { ev.preventDefault(); openLead(r.uid); }; box.append(a);
+    m.bindPopup(box);
+  });
+  if (pts.length && !state.mapFitted) { map.fitBounds(L.latLngBounds(pts.map((r) => [r.lat, r.lon])), {padding: [20, 20]}); state.mapFitted = true; }
+}
+function openLead(id, toCards) {
+  if (toCards && state.ui.mode === 'table') { state.ui.mode = 'cards'; saveUi(); syncSortUi(); }
+  const rows = filtered(), i = rows.findIndex((r) => r.uid === id);
+  if (i >= state.shown) state.shown = i + 10;
+  show('list'); renderList();
+  const c = $('p-' + id); if (c) { c.scrollIntoView({behavior: 'smooth', block: 'center'}); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2000); }
+}
+
+/* ------------------------------------------------------------------ settings */
+function renderWeights() {
+  const box = $('weights'); box.replaceChildren();
+  Object.keys(DEFAULT_W).forEach((k) => {
+    const row = el('label', 'wt'); const out = el('span', null, state.w[k].toFixed(1) + '×');
+    const inp = el('input'); inp.type = 'range'; inp.min = 0; inp.max = 3; inp.step = 0.5; inp.value = state.w[k];
+    inp.oninput = () => { state.w[k] = +inp.value; out.textContent = state.w[k].toFixed(1) + '×'; store.set('weights', state.w); rescore(); };
+    row.append(el('span', null, W_LABELS[k]), inp, out); box.append(row);
+  });
+}
+function renderImports() {
+  const box = $('implist'); box.replaceChildren();
+  if (!state.imports.length) { box.append(el('p', 'note', 'No lists imported yet.')); return; }
+  state.imports.forEach((l, i) => {
+    const matched = state.rows.filter((r) => r.tags.includes(l.name));
+    const onTax = matched.filter((r) => !r.imported).length;
+    const row = el('div');
+    row.append(el('span', null, `${l.name}: ${l.recs.length} records · ${onTax} also behind on taxes · ${matched.length - onTax} added as extra leads`));
+    const b = el('button', 'btn', 'Remove'); b.type = 'button';
+    b.onclick = () => { state.imports.splice(i, 1); store.set('imports', state.imports); rescore(); fillCities(); renderImports(); };
+    row.append(b); box.append(row);
+  });
+}
+function rescore() { if (state.data) { scoreAll(); renderList(); } }
+
+function csv() {
+  const cols = ['rank', 'score', 'tax_id', 'full_address', 'city', 'category', 'bldg_type', 'total_due', 'years_delinquent', 'oldest_year_owed', 'tax_sale_eligible',
+    'acres', 'lot_sqft', 'bldg_sqft', 'floors', 'built_yr', 'construction', 'mkt_value', 'land_value', 'tax_to_value_pct', 'subdivision', 'owner_name', 'owner_address',
+    'owner_type', 'phone', 'email', 'owner_state', 'absentee_owner', 'owner_delinquent_parcels', 'lists', 'score_reasons', 'first_seen', 'status', 'notes', 'lat', 'lon', 'streetview_url', 'satellite_url', 'map_url', 'zillow_url', 'county_url'];
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [cols.join(',')].concat(filtered().map((r) => { const t = state.track[r.uid] || {};
+    return cols.map((c) => esc(c === 'status' ? (t.status || 'New') : c === 'notes' ? t.note : c === 'lists' ? r.tags.join('; ') : r[c])).join(','); }));
+  return lines.join('\n');
+}
+function download(name, text, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type})); a.download = name;
+  document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* ------------------------------------------------------------------ wiring */
+function show(v) {
+  state.view = v;
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+  ['list', 'map', 'settings'].forEach((k) => { $('v-' + k).hidden = k !== v; });
+  if (v === 'map') renderMap();
+  if (v === 'settings') renderImports();
+}
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => show(b.dataset.view));
+FILTERS.forEach((id) => $(id).addEventListener($(id).tagName === 'INPUT' && $(id).type !== 'checkbox' ? 'input' : 'change', () => { state.shown = 40; state.mapFitted = false; saveUi(); renderList(); }));
+$('sort').onchange = () => { state.ui.sort = $('sort').value; state.ui.dir = TEXT_SORTS.has(state.ui.sort) ? 'asc' : 'desc'; saveUi(); syncSortUi(); renderList(); };
+$('dir').onclick = () => { state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; saveUi(); syncSortUi(); renderList(); };
+$('viewtoggle').onclick = () => { state.ui.mode = state.ui.mode === 'table' ? 'cards' : 'table'; state.shown = Math.max(state.shown, state.ui.mode === 'table' ? 100 : 40); saveUi(); syncSortUi(); renderList(); };
+$('f-clear').onclick = () => { FILTERS.forEach((id) => { const e = $(id); if (e.type === 'checkbox') e.checked = false; else e.value = e.tagName === 'SELECT' && e.options[0] ? e.options[0].value : ''; }); saveUi(); renderList(); };
+$('more').onclick = () => { state.shown += state.ui.mode === 'table' ? 100 : 40; renderList(); };
+$('w-reset').onclick = () => { state.w = Object.assign({}, DEFAULT_W); store.set('weights', state.w); renderWeights(); rescore(); };
+$('gkey').value = state.key;
+$('gkey').onchange = () => { state.key = $('gkey').value.trim(); store.set('gkey', state.key); renderList(); };
+$('imp-file').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const name = $('imp-name').value.trim() || f.name.replace(/\.csv$/i, '');
+    const list = readImport(name, await f.text());
+    state.imports = state.imports.filter((l) => l.name !== list.name).concat([list]);
+    store.set('imports', state.imports); $('imp-name').value = '';
+    rescore(); fillCities(); renderImports();
+  } catch (err) { alert('Could not import: ' + err.message); }
+  e.target.value = '';
+};
+$('export').onclick = () => state.data && download('cache-leads-' + state.data.fetchedAt.slice(0, 10) + '.csv', csv(), 'text/csv');
+$('export-mail').onclick = () => {
+  if (!state.data) return;
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const cols = ['Owner Name', 'Owner Type', 'Mailing Address', 'Mailing City', 'Mailing State', 'Mailing Zip', 'Property Address', 'Property City', 'Property State', 'Parcel ID', 'Score', 'Back Taxes', 'Phone', 'Email'];
+  const seen = new Set();
+  const lines = [cols.join(',')].concat(filtered().filter((r) => r.owner_address).filter((r) => { const k = (r.owner_name || '') + '|' + r.owner_address + '|' + r.uid; if (seen.has(k)) return false; seen.add(k); return true; }).map((r) => {
+    const m = splitMail(r.owner_address), street = (r.address || '').split(',')[0].trim();
+    return [r.owner_name || 'Current Owner', r.owner_type, m.street, title(m.city), m.state, m.zip, title(street), title(r.city), 'UT', r.tax_id, r.score, r.total_due, r.phone, r.email].map(esc).join(',');
+  }));
+  download('cache-leads-mailing-list.csv', lines.join('\n'), 'text/csv');
+};
+$('export-notes').onclick = () => download('cache-lead-notes.json', JSON.stringify({track: state.track, seen: state.seen, weights: state.w, imports: state.imports}), 'application/json');
+$('import-notes').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    Object.assign(state.track, j.track || {}); Object.assign(state.seen, j.seen || {});
+    if (Array.isArray(j.imports)) { const have = new Set(state.imports.map((l) => l.name)); state.imports = state.imports.concat(j.imports.filter((l) => !have.has(l.name))); }
+    store.set('track', state.track); store.set('seen', state.seen); store.set('imports', state.imports); rescore(); fillCities(); alert('Notes restored.');
+  } catch (err) { alert('That file could not be read.'); }
+};
+$('clear').onclick = () => { if (confirm('Clear the saved lead list? Your statuses, notes and imported lists are kept.')) { state.data = null; store.set('data', null); state.rows = []; renderList(); updateStatus(); } };
+
+function updateStatus() {
+  $('status').textContent = state.data ? 'Updated ' + new Date(state.data.fetchedAt).toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) : 'No data yet';
+}
+$('refresh').onclick = async () => {
+  const btn = $('refresh'); btn.disabled = true; $('error').hidden = true;
+  try {
+    const data = await fetchAll();
+    const today = data.fetchedAt.slice(0, 10);
+    const hadHistory = Object.keys(state.seen).length > 0;
+    const fresh = data.rows.filter((r) => !state.seen[r.tax_id]).map((r) => r.tax_id);
+    data.newIds = hadHistory ? fresh : null;
+    fresh.forEach((id) => { state.seen[id] = today; });
+    store.set('seen', state.seen);
+    state.data = data; store.set('data', data);
+    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList();
+  } catch (e) {
+    $('error').textContent = 'Refresh failed: ' + e.message + '. Your last saved list is still shown. Try again in a minute.'; $('error').hidden = false;
+  } finally { btn.disabled = false; setProgress(0); updateStatus(); }
+};
+
+if (state.data) { scoreAll(); fillCities(); }
+restoreUi(); renderWeights(); renderList(); updateStatus();
+</script>
+</body>
+</html>
