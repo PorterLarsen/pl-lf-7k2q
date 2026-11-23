@@ -768,13 +768,55 @@ const A_LABELS = {sellCost: ['Selling costs when you resell (%)', 'agent commiss
   rehabOld: ['Repairs, built before 1950 ($/sq ft)', ''], rehabMid: ['Repairs, built 1950–1989 ($/sq ft)', ''], rehabNew: ['Repairs, built 1990+ ($/sq ft)', ''], rehabCap: ['Repairs never more than (% of value)', 'keeps estimates sane on big old houses']};
 state.a = Object.assign({}, DEFAULT_A, store.get('assump', {}));
 const num = (v) => v === '' || v == null || isNaN(+v) ? null : +v;
-function defaultRepairs(r) {
-  if (r.category === 'Land') return 0;
-  if (!r.bldg_sqft) return r.mkt_value ? Math.round(r.mkt_value * 0.1 / 1000) * 1000 : null;
-  const rate = !r.built_yr ? state.a.rehabMid : r.built_yr < 1950 ? state.a.rehabOld : r.built_yr < 1990 ? state.a.rehabMid : state.a.rehabNew;
-  let est = r.bldg_sqft * rate;
-  if (r.mkt_value) est = Math.min(est, r.mkt_value * state.a.rehabCap / 100);
-  return Math.round(est / 1000) * 1000;
+const COND = {cosmetic: ['Cosmetic: paint, flooring, fixtures', 15], moderate: ['Moderate: plus kitchen and baths', 35],
+  heavy: ['Heavy: plus roof, systems, windows', 60], gut: ['Full gut: down to the studs', 100]};
+const ITEMS = {roof: ['Roof', 14000], hvac: ['Furnace / AC', 9000], wh: ['Water heater', 2000], panel: ['Electrical panel', 4000], wiring: ['Old wiring (rewire)', 15000],
+  sewer: ['Sewer line', 8000], found: ['Foundation', 15000], windows: ['Windows', 12000], paint: ['Exterior paint', 7000], mold: ['Mold / asbestos', 6000], yard: ['Yard & cleanout', 3000]};
+function repairBreakdown(r) {
+  const t = state.track[r.uid] || {};
+  if (r.category === 'Land') return {total: 0, how: 'land'};
+  const items = (t.items || []).filter((k) => ITEMS[k]), itemSum = items.reduce((a, k) => a + ITEMS[k][1], 0);
+  let base, how;
+  if (t.cond && COND[t.cond]) {
+    base = r.bldg_sqft ? r.bldg_sqft * COND[t.cond][1] : (r.mkt_value ? r.mkt_value * COND[t.cond][1] / 300 : null);
+    how = COND[t.cond][0].split(':')[0] + (r.bldg_sqft ? ` at $${COND[t.cond][1]}/sq ft` : '');
+  } else {
+    if (!r.bldg_sqft) base = r.mkt_value ? r.mkt_value * 0.1 : null;
+    else {
+      const rate = !r.built_yr ? state.a.rehabMid : r.built_yr < 1950 ? state.a.rehabOld : r.built_yr < 1990 ? state.a.rehabMid : state.a.rehabNew;
+      base = r.bldg_sqft * rate; if (r.mkt_value) base = Math.min(base, r.mkt_value * state.a.rehabCap / 100);
+    }
+    how = 'guess from age and size';
+  }
+  if (base == null && !itemSum) return {total: null, how};
+  return {total: Math.round(((base || 0) + itemSum) / 1000) * 1000, base: Math.round(base || 0), itemSum, items, how};
+}
+function defaultRepairs(r) { return repairBreakdown(r).total; }
+function repairPicker(r, redraw) {
+  const t = state.track[r.uid] || {}, b = repairBreakdown(r);
+  const det = el('details', 'loanest'); if (t.cond || (t.items || []).length) det.open = true;
+  det.append(el('summary', null, 'Estimate repairs: ' + (b.total != null ? fmtUsd(b.total) : '—') + ' (' + b.how + (b.itemSum ? ' + ' + fmtUsd(b.itemSum) + ' in items' : '') + ')'));
+  const sel = el('select'); sel.className = 'num'; sel.style.width = '100%'; sel.style.height = '38px'; sel.style.margin = '6px 0';
+  sel.append(new Option('Condition: not seen yet (guess by age)', ''));
+  Object.entries(COND).forEach(([k, [label, rate]]) => sel.append(new Option(`${label} (~$${rate}/sq ft)`, k)));
+  sel.value = t.cond || '';
+  sel.onchange = () => { saveTrack(r.uid, {cond: sel.value, rep: ''}); rescoreSoon(); redraw(); };
+  det.append(sel, el('div', 'dealnote', 'Add big-ticket items you can see or suspect (from photos, the year built, or a walk-through):'));
+  const chips = el('div', 'acts'); chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:6px 0';
+  Object.entries(ITEMS).forEach(([k, [label, cost]]) => {
+    const on = (t.items || []).includes(k), c = el('button', 'btn', (on ? '✓ ' : '+ ') + label + ' ' + fmtUsd(cost));
+    c.type = 'button'; c.style.cssText = 'font-size:12.5px;padding:5px 10px;border-radius:999px' + (on ? ';background:var(--accent2);border-color:var(--accent);color:var(--accent)' : '');
+    c.onclick = () => { const cur = new Set((state.track[r.uid] || {}).items || []); cur.has(k) ? cur.delete(k) : cur.add(k); saveTrack(r.uid, {items: [...cur], rep: ''}); rescoreSoon(); redraw(); };
+    chips.append(c);
+  });
+  det.append(chips);
+  const hints = [];
+  if (r.built_yr && r.built_yr < 1978) hints.push('built before 1978: likely lead paint, and possibly asbestos');
+  if (r.built_yr && r.built_yr < 1960) hints.push('before 1960: check wiring, plumbing and the sewer line (camera inspection ~$250)');
+  if (r.built_yr && r.built_yr >= 1960 && r.built_yr < 2006) hints.push('roof and furnace are probably past their life unless replaced');
+  if (hints.length) det.append(el('div', 'dealwarn', 'Watch for: ' + hints.join('; ') + '.'));
+  det.append(el('div', 'dealnote', 'Rough Utah ballpark costs for planning only. Before a firm offer, walk it with a contractor or get an inspection (~$400), and use their bid in the Repairs box above.'));
+  return det;
 }
 function analyze(r) {
   const t = state.track[r.uid] || {}, a = state.a;
@@ -1345,7 +1387,7 @@ function dealBlock(r) {
     field('Loan balance ($)', 'loan', d.loan, d.loanKnown ? 'using' : 'unknown —');
     field('Repairs ($)', 'rep', d.repairs, 'est.');
     box.append(inp);
-    box.append(loanEstimator(r, draw));
+    box.append(repairPicker(r, draw), loanEstimator(r, draw));
     if (!d.value) { box.append(el('div', 'dealnote', 'No value on file yet. Enter what similar homes sell for (check the Zillow link), or tap Refresh to load the assessor\'s value.')); return; }
     const eq = el('div', 'eq');
     const kv = (k, v) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); eq.append(x); };
