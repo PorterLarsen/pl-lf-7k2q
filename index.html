@@ -197,6 +197,9 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
 .contact .mail{white-space:pre-line;margin:4px 0 8px;color:var(--muted)}
 .contact .acts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .contact .acts a,.contact .acts button{font-size:13px;border:1px solid var(--line2);border-radius:999px;padding:5px 12px;background:var(--bg);color:var(--accent);text-decoration:none;cursor:pointer;font-weight:600}
+.phones{margin:8px 0;display:grid;gap:4px}.phones .ph{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}.phones .ph>a:first-child{font-weight:650;font-variant-numeric:tabular-nums}
+.phones .dnc>a:first-child{color:var(--muted);text-decoration:line-through}.phones .pt{font-size:11px;border-radius:999px;padding:1px 8px;background:var(--accent2);color:var(--accent);font-weight:650}.phones .pt.warn{background:#fde8e6;color:var(--bad)}
+.phones .sm{font-size:12px;border:1px solid var(--line2);border-radius:999px;padding:2px 9px;background:var(--panel);color:var(--accent);text-decoration:none;cursor:pointer}
 .contact .next{font-size:13px;background:var(--gold2);border-radius:10px;padding:8px 10px;margin:8px 0}
 .contact .cf{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .contact .cf input{flex:1 1 150px;height:36px;padding:0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
@@ -522,6 +525,22 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <button class="btn" id="a-reset">Reset to default</button>
     </div>
     <div class="panel">
+      <h2>Skip tracing: owner phone numbers & emails</h2>
+      <p class="note">A skip tracing service matches each owner to their phone numbers and emails, for roughly 7–15¢ per owner found. No subscription needed.</p>
+      <ol class="note" style="padding-left:18px;margin:8px 0">
+        <li>On the Leads tab, filter to the leads worth calling (for example Score 70+). The file uses your current filters and skips passed leads, leads already traced, and duplicates.</li>
+        <li>Tap <b>Download skip trace file</b> below.</li>
+        <li>Upload it to a pay-per-match service such as BatchData's pay-as-you-go skip tracing (batchdata.io), REISkip or similar. The columns are already named the way they expect. Turn on their Do Not Call / litigator scrub if offered.</li>
+        <li>Download their results file and tap <b>Import results</b>. Phones and emails attach to each lead, with mobile/landline and Do Not Call flags.</li>
+      </ol>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" id="skip-export" type="button">Download skip trace file</button>
+        <label class="btn">Import results<input type="file" id="skip-import" accept=".csv,text/csv" hidden></label>
+        <span class="note" id="skip-msg"></span>
+      </div>
+      <p class="note" style="margin-top:8px">Calling rules: check numbers against the National Do Not Call Registry (most services flag them), dial by hand, and don't send mass or automated texts to cell phones. Federal law (the TCPA) restricts those without consent. Letters have no such limits.</p>
+    </div>
+    <div class="panel">
       <h2>Add other lead lists</h2>
       <p class="note">Import any spreadsheet saved as CSV — for example Notices of Default, trustee sales, probate cases, code violations, or an export from PropStream. It needs a column with the parcel ID (like 05-032-0007) or the street address. Matching properties get a tag and a score boost; properties not behind on taxes are added as extra leads. Lot and building details are added for them on the next Refresh when a parcel ID is given.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -739,7 +758,25 @@ function readImport(name, text) {
   const ival = col('estimated value', 'est. value', 'est value', 'avm', 'estimated market value');
   const iloan = col('open loans balance', 'mortgage balance', 'loan balance', 'est. mortgage', 'estimated mortgage', 'total loan', 'open mortgage');
   if (ip < 0 && ia < 0) throw new Error('No parcel ID or address column found. Name a column "Parcel ID" or "Address".');
-  const recs = rows.slice(1).map((r) => ({pid: ip >= 0 ? fmtPid(r[ip]) : '', addr: ia >= 0 ? (r[ia] || '').trim() : '', city: ic >= 0 ? (r[ic] || '').trim() : '', owner: io >= 0 ? (r[io] || '').trim() : '', phone: iph >= 0 ? (r[iph] || '').trim() : '', email: iem >= 0 ? (r[iem] || '').trim() : '',
+  const numOf = (h) => (h.match(/\d+/) || [''])[0];
+  const phoneCols = head.map((h, i) => ({h, i})).filter(({h}) => /phone|mobile|cell|wireless|landline/.test(h) && !/type|dnc|status|carrier|score|tag|verified|date|litigator|owner/.test(h));
+  const emailCols = head.map((h, i) => ({h, i})).filter(({h}) => /e-?mail/.test(h) && !/type|verified|status|date|score/.test(h));
+  const sib = (c, word) => head.findIndex((h, j) => j !== c.i && h.includes(word) && numOf(h) === numOf(c.h) && (/phone|mobile|wireless|landline|cell/.test(h) || !numOf(c.h) || h.replace(/\D/g, '') === numOf(c.h)));
+  const truthy = (v) => /^(y|yes|true|1|dnc|on dnc|x)$/i.test(String(v || '').trim());
+  const phonesOf = (r) => {
+    const out = [];
+    phoneCols.forEach((c) => {
+      const d = String(r[c.i] || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+      if (d.length !== 10 || out.some((x) => x.n === d)) return;
+      const ti = sib(c, 'type'), di = sib(c, 'dnc');
+      let type = /mobile|wireless|cell/.test(c.h) ? 'mobile' : /landline/.test(c.h) ? 'landline' : (ti >= 0 ? String(r[ti] || '').toLowerCase() : '');
+      if (/wireless|cell|mobile/.test(type)) type = 'mobile'; else if (/land|fixed|residential/.test(type)) type = 'landline'; else if (type && !/voip/.test(type)) type = ''; else if (/voip/.test(type)) type = 'VoIP';
+      out.push({n: d, type, dnc: di >= 0 ? truthy(r[di]) : false});
+    });
+    return out;
+  };
+  const emailsOf = (r) => [...new Set(emailCols.map((c) => String(r[c.i] || '').trim().toLowerCase()).filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)))];
+  const recs = rows.slice(1).map((r) => ({phones: phonesOf(r), emails: emailsOf(r), pid: ip >= 0 ? fmtPid(r[ip]) : '', addr: ia >= 0 ? (r[ia] || '').trim() : '', city: ic >= 0 ? (r[ic] || '').trim() : '', owner: io >= 0 ? (r[io] || '').trim() : '', phone: iph >= 0 ? (r[iph] || '').trim() : '', email: iem >= 0 ? (r[iem] || '').trim() : '',
     value: ival >= 0 ? num(String(r[ival] || '').replace(/[$,\s]/g, '')) : null, loan: iloan >= 0 ? num(String(r[iloan] || '').replace(/[$,\s]/g, '')) : null}))
     .filter((x) => x.pid || x.addr);
   return {name: name || 'Imported list', at: new Date().toISOString(), recs};
@@ -1006,7 +1043,10 @@ function scoreAll() {
     r.owner_delinquent_parcels = port[r.owner_address] || 1;
     r.owner_type = ownerType(r.owner_name);
     const tk = state.track[r.tax_id || r.import_key] || {};
-    r.phone = tk.phone || r.phone || ''; r.email = tk.email || r.email || '';
+    const bad = new Set(tk.badph || []);
+    r.phones = (tk.phones || []).filter((x) => !bad.has(x.n)); r.emails = tk.emails || [];
+    const goodPh = r.phones.find((x) => !x.dnc && x.type === 'mobile') || r.phones.find((x) => !x.dnc) || r.phones[0];
+    r.phone = tk.phone || r.phone || (goodPh ? fmtPhone(goodPh.n) : ''); r.email = tk.email || r.email || r.emails[0] || '';
     if (r.owner_address) {
       let m = 0;
       if (r.absentee_owner) { m += 10; why.push('absentee owner'); }
@@ -1294,7 +1334,7 @@ function card(r) {
   if (r.owner_address) ct.append(el('div', 'mail', 'Tax bill mailed to:\n' + mailingLabel(r).split('\n').slice(1).join('\n')));
   const acts = el('div', 'acts');
   if (r.owner_address) { const b = el('button', null, 'Copy mailing label'); b.type = 'button'; b.onclick = () => copyText(mailingLabel(r), b); acts.append(b); }
-  if (r.phone) { const a = el('a', null, 'Call ' + r.phone); a.href = 'tel:' + r.phone.replace(/[^\d+]/g, ''); acts.append(a); const s2 = el('a', null, 'Text'); s2.href = 'sms:' + r.phone.replace(/[^\d+]/g, ''); acts.append(s2); }
+  if (r.phone && !(r.phones || []).length) { const a = el('a', null, 'Call ' + r.phone); a.href = 'tel:' + r.phone.replace(/[^\d+]/g, ''); acts.append(a); const s2 = el('a', null, 'Text'); s2.href = 'sms:' + r.phone.replace(/[^\d+]/g, ''); acts.append(s2); }
   if (r.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) { const a = el('a', null, 'Email'); a.href = 'mailto:' + r.email; acts.append(a); }
   if (r.owner_type === 'Business' || r.owner_type === 'Trust') {
     const b = el('button', null, 'Copy name'); b.type = 'button'; b.onclick = () => copyText(r.owner_name, b); acts.append(b);
@@ -1303,6 +1343,22 @@ function card(r) {
   if (r.owner_type === 'Estate' || r.owner_type === 'Individual') { const a = el('a', null, 'Court records'); a.href = XCHANGE; a.target = '_blank'; a.rel = 'noopener'; acts.append(a); }
   if (r.owner_address) { const pl = el('button', null, 'Print letter'); pl.type = 'button'; pl.onclick = () => printLetters([r]); acts.prepend(pl); }
   ct.append(acts);
+  if ((r.phones || []).length || (r.emails || []).length) {
+    const pl = el('div', 'phones');
+    r.phones.forEach((p) => {
+      const row = el('div', 'ph' + (p.dnc ? ' dnc' : ''));
+      const a = el('a', null, fmtPhone(p.n)); a.href = 'tel:' + p.n; row.append(a);
+      if (p.type) row.append(el('span', 'pt', p.type));
+      if (p.dnc) row.append(el('span', 'pt warn', 'Do Not Call list'));
+      if (p.type !== 'landline') { const tx = el('a', 'sm', 'Text'); tx.href = 'sms:' + p.n; row.append(tx); }
+      const bad = el('button', 'sm', 'Wrong number'); bad.type = 'button';
+      bad.onclick = () => { const t2 = state.track[r.uid] || {}; saveTrack(r.uid, {badph: [...new Set((t2.badph || []).concat(p.n))]}); rescoreSoon(); row.remove(); };
+      row.append(bad); pl.append(row);
+    });
+    r.emails.forEach((e) => { const row = el('div', 'ph'), a = el('a', null, e); a.href = 'mailto:' + e; row.append(a); pl.append(row); });
+    if (r.phones.some((p) => p.dnc)) pl.append(el('div', 'dealnote', 'Numbers on the Do Not Call list: don\'t cold call them. Send a letter instead, or call only if the owner contacts you first.'));
+    ct.append(pl);
+  }
   ct.append(el('div', 'next', nextStep(r)));
   const cf = el('div', 'cf');
   const ph = el('input'); ph.type = 'tel'; ph.placeholder = 'Phone'; ph.value = r.phone || ''; ph.setAttribute('aria-label', 'Owner phone');
@@ -1620,6 +1676,61 @@ function openLead(id, toCards) {
   if (i >= state.shown) state.shown = i + 10;
   show('list'); renderList();
   const c = $('p-' + id); if (c) { c.scrollIntoView({behavior: 'smooth', block: 'center'}); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2000); }
+}
+
+/* ------------------------------------------------------------------ skip tracing */
+const fmtPhone = (d) => d && d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d;
+const CACHE_ZIP = {LOGAN: '84321', 'NORTH LOGAN': '84341', 'RIVER HEIGHTS': '84321', NIBLEY: '84321', PROVIDENCE: '84332', MILLVILLE: '84326', HYRUM: '84319', WELLSVILLE: '84339',
+  MENDON: '84325', PARADISE: '84328', AVON: '84328', SMITHFIELD: '84335', AMALGA: '84335', BENSON: '84335', 'HYDE PARK': '84318', RICHMOND: '84333', LEWISTON: '84320',
+  COVE: '84320', TRENTON: '84338', CORNISH: '84308', CLARKSTON: '84305', NEWTON: '84327', PETERSBORO: '84325', 'COLLEGE WARD': '84321', 'YOUNG WARD': '84321', 'CACHE JUNCTION': '84304'};
+function ownerNameParts(r) {
+  if (r.owner_type === 'Business' || r.owner_type === 'Government / church' || !r.owner_name) return ['', ''];
+  let n = String(r.owner_name).toUpperCase().replace(/\b(ESTATE OF|THE|LIVING|FAMILY|REVOCABLE|IRREVOCABLE|TRUST|TRUSTEES?|TRS|CO-TRS|TR|ESTATE|HEIRS|DATED|ET AL|ETAL)\b/g, ' ').replace(/[^A-Z&' -]/g, ' ').replace(/\s+/g, ' ').trim();
+  const first = (n.split('&')[0].trim().split(' ')[0] || ''), toks = n.replace(/&/g, ' ').trim().split(' ');
+  const last = toks.length > 1 ? toks[toks.length - 1] : '';
+  return [title(first), title(last)];
+}
+function skipTraceRows() {
+  const seen = new Set(), skipped = {noaddr: 0, done: 0};
+  const rows = filtered().filter((r) => {
+    const t = state.track[r.uid] || {};
+    if (t.status === 'Pass') return false;
+    if ((t.phones || []).length) { skipped.done++; return false; }
+    if (!r.full_address) { skipped.noaddr++; return false; }
+    const k = r.owner_address ? (r.owner_name || '') + '|' + r.owner_address : r.full_address;   // one row per owner: they're charged per record
+    if (seen.has(k)) return false; seen.add(k); return true;
+  });
+  return {rows, skipped};
+}
+function skipTraceCsv(rows) {
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const cols = ['First Name', 'Last Name', 'Property Address', 'Property City', 'Property State', 'Property Zip', 'Mailing Address', 'Mailing City', 'Mailing State', 'Mailing Zip', 'Parcel ID', 'Owner Name'];
+  return [cols.join(',')].concat(rows.map((r) => {
+    const [fn, ln] = ownerNameParts(r), m = splitMail(r.owner_address), [street, city] = r.full_address.split(',').map((x) => x.trim());
+    return [fn, ln, street, city, 'UT', CACHE_ZIP[String(city || '').toUpperCase()] || '', m.street, title(m.city), m.state, m.zip, r.tax_id, r.owner_name].map(esc).join(',');
+  })).join('\n');
+}
+function importSkipResults(text) {
+  const lst = readImport('skip', text);
+  const byPid = new Map(state.rows.filter((r) => r.tax_id).map((r) => [r.tax_id, r]));
+  const byAddr = new Map(state.rows.filter((r) => r.full_address).map((r) => [normAddr(r.full_address), r]));
+  let matched = 0, withPhone = 0, dnc = 0;
+  lst.recs.forEach((x) => {
+    const r = (x.pid && byPid.get(x.pid)) || (x.addr && byAddr.get(normAddr(x.addr)));
+    if (!r) return;
+    matched++;
+    if (x.phones.length) withPhone++;
+    dnc += x.phones.filter((p) => p.dnc).length;
+    const same = r.owner_address ? state.rows.filter((o) => o.owner_address === r.owner_address && o.owner_name === r.owner_name) : [r];
+    same.forEach((o) => {
+      const t = state.track[o.uid] || {};
+      const phones = (t.phones || []).concat(x.phones.filter((p) => !(t.phones || []).some((q) => q.n === p.n)));
+      const emails = [...new Set((t.emails || []).concat(x.emails))];
+      saveTrack(o.uid, {phones, emails, skipped: today()});
+    });
+  });
+  rescore();
+  return {total: lst.recs.length, matched, withPhone, dnc};
 }
 
 /* ------------------------------------------------------------------ letters */
@@ -1990,6 +2101,20 @@ $('me-offer').onchange = () => { state.me.offer = $('me-offer').checked; store.s
 $('me-tpl').onchange = () => { state.me.tpl = $('me-tpl').value; store.set('me', state.me); };
 $('me-reset').onclick = () => { state.me.tpl = DEFAULT_TPL; store.set('me', state.me); $('me-tpl').value = DEFAULT_TPL; };
 renderMe(); updateDue();
+$('skip-export').onclick = () => {
+  if (!state.data) { $('skip-msg').textContent = 'Tap Refresh first.'; return; }
+  const {rows, skipped} = skipTraceRows();
+  if (!rows.length) { $('skip-msg').textContent = 'No leads to trace with your current filters.'; return; }
+  download('skip-trace-' + today() + '.csv', skipTraceCsv(rows), 'text/csv');
+  $('skip-msg').textContent = `${rows.length} owners in the file` + (skipped.done ? `, ${skipped.done} already traced` : '') + (skipped.noaddr ? `, ${skipped.noaddr} skipped (no street address)` : '') + '.';
+};
+$('skip-import').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return; e.target.value = '';
+  try {
+    const res = importSkipResults(await f.text());
+    $('skip-msg').textContent = `Matched ${res.matched} of ${res.total} rows; ${res.withPhone} owners now have phone numbers` + (res.dnc ? ` (${res.dnc} numbers flagged Do Not Call)` : '') + '.';
+  } catch (err) { $('skip-msg').textContent = 'Could not read that file: ' + err.message; }
+};
 $('sync-on').onclick = async () => {
   const token = $('sync-token').value.trim(), pass = $('sync-pass').value;
   if (!token || pass.length < 8) { setSyncStatus('Enter the token and a passphrase of at least 8 characters.', true); return; }
