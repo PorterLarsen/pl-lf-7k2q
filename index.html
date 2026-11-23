@@ -96,6 +96,20 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
 .contact .cf{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .contact .cf input{flex:1 1 150px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
 .locnote{font-size:13px;color:var(--warn);margin-top:2px}
+.deal{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;font-size:14px}
+.deal h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+.deal .inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 10px;margin-bottom:8px}
+.deal .inputs label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.deal .inputs input{width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-variant-numeric:tabular-nums}
+.deal .eq{display:flex;flex-wrap:wrap;gap:6px 16px;margin:4px 0 8px}
+.deal .eq b{font-variant-numeric:tabular-nums}
+.offers{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.offers th{text-align:right;color:var(--muted);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
+.offers th:first-child,.offers td:first-child{text-align:left}
+.offers td{text-align:right;padding:5px 6px;border-bottom:1px solid var(--line)}
+.offers tr.target td{font-weight:700;background:var(--accent2)}
+.dealnote{font-size:12px;color:var(--muted);margin-top:6px}
+.dealwarn{font-size:13px;color:var(--warn);margin-top:6px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -123,7 +137,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <label class="chk">Sort
         <select id="sort" aria-label="Sort by">
           <option value="score">Score</option><option value="total_due">Back taxes owed</option><option value="years_delinquent">Years behind</option>
-          <option value="mkt_value">Market value</option><option value="tax_to_value_pct">Taxes ÷ value</option><option value="acres">Lot size</option>
+          <option value="mkt_value">Market value</option><option value="tax_to_value_pct">Taxes ÷ value</option><option value="equity">Estimated equity ($)</option><option value="equity_pct">Estimated equity (%)</option><option value="target_offer">Target offer</option><option value="profit_target">Your profit at target offer</option><option value="acres">Lot size</option>
           <option value="bldg_sqft">Building size</option><option value="built_yr">Year built</option><option value="owner_delinquent_parcels">Owner's parcel count</option>
           <option value="first_seen">Date added to list</option><option value="full_address">Address (A–Z)</option><option value="city">City (A–Z)</option>
         </select></label>
@@ -147,6 +161,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
         <label class="chk">Lot at least <input type="number" id="f-lot" placeholder="acres" step="0.05" inputmode="decimal" class="num"> ac</label>
         <label class="chk">Building at least <input type="number" id="f-sqft" placeholder="sq ft" inputmode="numeric" class="num"></label>
         <label class="chk">Built <input type="number" id="f-ymin" placeholder="after" inputmode="numeric" class="num"> to <input type="number" id="f-ymax" placeholder="before" inputmode="numeric" class="num"></label>
+        <select id="f-eq" aria-label="Minimum equity"><option value="">Any equity</option><option value="30">30%+ equity</option><option value="50">50%+ equity</option><option value="70">70%+ equity</option><option value="90">90%+ (likely paid off)</option></select>
+        <label class="chk"><input type="checkbox" id="f-loan"> Loan balance known</label>
         <select id="f-yrs" aria-label="Years behind"><option value="0">Any years behind</option><option value="2">2+ years behind</option><option value="3">3+ years behind</option><option value="4">4+ years behind</option></select>
         <select id="f-tag" aria-label="Imported list"><option value="">Any imported list</option><option value="__any">On any imported list</option></select>
         <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
@@ -173,6 +189,12 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <p class="note">Each slider sets how much that part counts toward the 0–100 score. The ranking updates as you move them.</p>
       <div id="weights"></div>
       <button class="btn" id="w-reset">Reset to default</button>
+    </div>
+    <div class="panel">
+      <h2>Offer assumptions</h2>
+      <p class="note">Used for every lead's equity and offer estimates. You can override value, loan and repairs on each lead.</p>
+      <div id="assump"></div>
+      <button class="btn" id="a-reset">Reset to default</button>
     </div>
     <div class="panel">
       <h2>Add other lead lists</h2>
@@ -225,8 +247,8 @@ const DEFAULT_W = {distress: 1, type: 1, motivation: 1, location: 1, quality: 1,
 const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', motivation: 'Owner motivation', location: 'Location',
   quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists'};
 const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
-  'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone'];
-const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone'];
+  'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan'];
+const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan'];
 const TEXT_SORTS = new Set(['full_address', 'city']);
 let state = {
   data: window.CDF_PRELOAD || store.get('data', null),   // {fetchedAt, backYear, rows, newIds, extraDetails}
@@ -373,8 +395,11 @@ function readImport(name, text) {
   const io = col('owner name', 'owner', 'name', 'decedent', 'defendant', 'trustor');
   const iph = col('phone', 'mobile', 'cell', 'wireless', 'landline');
   const iem = col('email', 'e-mail');
+  const ival = col('estimated value', 'est. value', 'est value', 'avm', 'estimated market value');
+  const iloan = col('open loans balance', 'mortgage balance', 'loan balance', 'est. mortgage', 'estimated mortgage', 'total loan', 'open mortgage');
   if (ip < 0 && ia < 0) throw new Error('No parcel ID or address column found. Name a column "Parcel ID" or "Address".');
-  const recs = rows.slice(1).map((r) => ({pid: ip >= 0 ? fmtPid(r[ip]) : '', addr: ia >= 0 ? (r[ia] || '').trim() : '', city: ic >= 0 ? (r[ic] || '').trim() : '', owner: io >= 0 ? (r[io] || '').trim() : '', phone: iph >= 0 ? (r[iph] || '').trim() : '', email: iem >= 0 ? (r[iem] || '').trim() : ''}))
+  const recs = rows.slice(1).map((r) => ({pid: ip >= 0 ? fmtPid(r[ip]) : '', addr: ia >= 0 ? (r[ia] || '').trim() : '', city: ic >= 0 ? (r[ic] || '').trim() : '', owner: io >= 0 ? (r[io] || '').trim() : '', phone: iph >= 0 ? (r[iph] || '').trim() : '', email: iem >= 0 ? (r[iem] || '').trim() : '',
+    value: ival >= 0 ? num(String(r[ival] || '').replace(/[$,\s]/g, '')) : null, loan: iloan >= 0 ? num(String(r[iloan] || '').replace(/[$,\s]/g, '')) : null}))
     .filter((x) => x.pid || x.addr);
   return {name: name || 'Imported list', at: new Date().toISOString(), recs};
 }
@@ -401,8 +426,53 @@ function buildRows() {
     if (!r.owner_name && x.owner) r.owner_name = x.owner;
     if (x.phone && !r.phone) r.phone = x.phone;
     if (x.email && !r.email) r.email = x.email;
+    if (x.value != null) r.est_value = x.value;
+    if (x.loan != null) r.loan_balance = x.loan;
   }));
   state.rows = tax.concat([...extra.values()]);
+}
+
+/* ------------------------------------------------------------------ deal analysis */
+const DEFAULT_A = {sellCost: 8, buyCost: 3, holdPct: 2, profitMin: 10, openPct: 65, targetPct: 70, landOpen: 40, landTarget: 50, landCeil: 65,
+  rehabOld: 35, rehabMid: 22, rehabNew: 10, rehabCap: 30};
+const A_LABELS = {sellCost: ['Selling costs when you resell (%)', 'agent commission + closing'], buyCost: ['Your buying costs (%)', 'title, closing'],
+  holdPct: ['Holding costs (%)', 'taxes, insurance, utilities, loan interest while you fix and sell'], profitMin: ['Minimum profit you want (%)', 'of resale value, sets your walk-away ceiling'],
+  openPct: ['Opening offer (% of value, before repairs)', ''], targetPct: ['Target offer (% of value, before repairs)', 'the "70% rule" most investors use'],
+  landOpen: ['Land: opening offer (% of value)', ''], landTarget: ['Land: target offer (% of value)', ''], landCeil: ['Land: ceiling (% of value)', ''],
+  rehabOld: ['Repairs, built before 1950 ($/sq ft)', ''], rehabMid: ['Repairs, built 1950–1989 ($/sq ft)', ''], rehabNew: ['Repairs, built 1990+ ($/sq ft)', ''], rehabCap: ['Repairs never more than (% of value)', 'keeps estimates sane on big old houses']};
+state.a = Object.assign({}, DEFAULT_A, store.get('assump', {}));
+const num = (v) => v === '' || v == null || isNaN(+v) ? null : +v;
+function defaultRepairs(r) {
+  if (r.category === 'Land') return 0;
+  if (!r.bldg_sqft) return r.mkt_value ? Math.round(r.mkt_value * 0.1 / 1000) * 1000 : null;
+  const rate = !r.built_yr ? state.a.rehabMid : r.built_yr < 1950 ? state.a.rehabOld : r.built_yr < 1990 ? state.a.rehabMid : state.a.rehabNew;
+  let est = r.bldg_sqft * rate;
+  if (r.mkt_value) est = Math.min(est, r.mkt_value * state.a.rehabCap / 100);
+  return Math.round(est / 1000) * 1000;
+}
+function analyze(r) {
+  const t = state.track[r.uid] || {}, a = state.a;
+  const value = num(t.val) ?? num(r.est_value) ?? num(r.mkt_value);
+  const loan = num(t.loan) ?? num(r.loan_balance);
+  const repairs = num(t.rep) ?? defaultRepairs(r);
+  const d = {value, loan, loanKnown: loan != null, repairs, backTaxes: r.total_due || 0, valueSource: num(t.val) != null ? 'your estimate' : num(r.est_value) != null ? 'imported estimate' : 'county assessor'};
+  if (!value) return d;
+  const debt = (loan || 0) + d.backTaxes;
+  d.equity = value - debt; d.equityPct = Math.round(100 * d.equity / value);
+  const land = r.category === 'Land';
+  const rep = repairs || 0;
+  const costs = value * (a.sellCost + a.buyCost + a.holdPct) / 100;
+  const listNet = value - rep - value * (a.sellCost + a.holdPct) / 100;          // what owner nets fixing nothing and listing as-is, before paying debts
+  const mk = (price) => {
+    price = Math.max(0, Math.round(price / 500) * 500);
+    return {price, profit: Math.round(value - price - rep - costs), seller: Math.round(price - debt), pctOfList: listNet > 0 ? Math.round(100 * price / listNet) : null};
+  };
+  if (land) d.offers = {open: mk(value * a.landOpen / 100), target: mk(value * a.landTarget / 100), ceil: mk(value * a.landCeil / 100)};
+  else d.offers = {open: mk(value * a.openPct / 100 - rep), target: mk(value * a.targetPct / 100 - rep), ceil: mk(value - rep - costs - value * a.profitMin / 100)};
+  d.listNet = Math.round(listNet); d.sellerListNet = Math.round(listNet - debt);
+  d.underwater = d.loanKnown && debt >= value * 0.9;
+  d.shortfall = d.loanKnown && !d.underwater && d.offers.ceil.price < debt;
+  return d;
 }
 
 /* ------------------------------------------------------------------ owners & contact */
@@ -532,6 +602,9 @@ function scoreAll() {
     r.score_reasons = why.join('; ');
     r.first_seen = state.seen[r.tax_id] || '';
     links(r);
+    const da = analyze(r);
+    r.equity = da.equity ?? null; r.equity_pct = da.equityPct ?? null; r.loan_known = da.loanKnown;
+    r.target_offer = da.offers ? da.offers.target.price : null; r.profit_target = da.offers ? da.offers.target.profit : null;
   });
   rows.sort((a, b) => b.score - a.score || b.total_due - a.total_due);
   rows.forEach((r, i) => { r.rank = i + 1; r.uid = r.tax_id || r.import_key; });
@@ -557,7 +630,7 @@ function links(r) {
 
 /* ------------------------------------------------------------------ filter & sort */
 const $ = (id) => document.getElementById(id);
-const fmtUsd = (v, d = 0) => v == null ? '—' : '$' + (+v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const fmtUsd = (v, d = 0) => v == null ? '—' : (+v < 0 ? '−$' : '$') + Math.abs(+v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
 const fmtN = (v) => v == null || v === '' ? '—' : (+v).toLocaleString('en-US');
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const isNew = (r) => !!(state.data && state.data.newIds && state.data.newIds.includes(r.tax_id));
@@ -593,6 +666,8 @@ function filtered() {
     if ($('f-new').checked && !isNew(r)) return false;
     if ($('f-otype').value && r.owner_type !== $('f-otype').value) return false;
     if ($('f-phone').checked && !(r.phone || r.email)) return false;
+    if ($('f-eq').value && !(r.equity_pct >= +$('f-eq').value)) return false;
+    if ($('f-loan').checked && !r.loan_known) return false;
     if (q && ![r.full_address, r.owner_name, r.owner_address, r.tax_id, r.bldg_type, t.note, r.tags.join(' '), r.phone, r.email].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -683,6 +758,7 @@ function card(r) {
   em.onchange = () => { saveTrack(r.uid, {email: em.value.trim()}); r.email = em.value.trim(); };
   cf.append(ph, em); ct.append(cf);
   c.append(ct);
+  c.append(dealBlock(r));
 
   if (state.key && (r.lat || r.full_address)) {
     const loc = encodeURIComponent(r.lat ? r.lat + ',' + r.lon : r.full_address), k = encodeURIComponent(state.key);
@@ -717,11 +793,65 @@ function card(r) {
   tr.append(sel, note); c.append(tr);
   return c;
 }
+function dealBlock(r) {
+  const box = el('div', 'deal');
+  const draw = () => {
+    const d = analyze(r);
+    box.replaceChildren(el('h4', null, 'Equity & offer estimate'));
+    const inp = el('div', 'inputs');
+    const field = (label, key, val, ph) => {
+      const w = el('div'); w.append(el('label', null, label));
+      const i = el('input'); i.type = 'number'; i.inputMode = 'numeric'; i.placeholder = ph; i.value = (state.track[r.uid] || {})[key] ?? '';
+      if (i.value === '' && val != null) i.placeholder = ph + ' ' + Math.round(val).toLocaleString('en-US');
+      i.onchange = () => { saveTrack(r.uid, {[key]: i.value.trim()}); rescoreSoon(); draw(); };
+      w.append(i); inp.append(w);
+    };
+    field('Value ($)', 'val', d.value, d.value ? 'using' : 'enter');
+    field('Loan balance ($)', 'loan', d.loan, d.loanKnown ? 'using' : 'unknown —');
+    field('Repairs ($)', 'rep', d.repairs, 'est.');
+    box.append(inp);
+    if (!d.value) { box.append(el('div', 'dealnote', 'No value on file yet. Enter what similar homes sell for (check the Zillow link), or tap Refresh to load the assessor\'s value.')); return; }
+    const eq = el('div', 'eq');
+    const kv = (k, v) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); eq.append(x); };
+    kv('Value', fmtUsd(d.value) + ' (' + d.valueSource + ')');
+    kv('Owed', d.loanKnown ? fmtUsd((d.loan || 0) + d.backTaxes) : fmtUsd(d.backTaxes) + ' back taxes + unknown loan');
+    kv('Equity', (d.loanKnown ? '' : 'up to ') + fmtUsd(d.equity) + ' (' + d.equityPct + '%)');
+    box.append(eq);
+    const t = el('table', 'offers');
+    const hr = el('tr'); ['Offer', 'Price', 'Your profit', 'Owner gets in cash', 'vs. listing'].forEach((h) => hr.append(el('th', null, h)));
+    t.append(hr);
+    [['Opening', 'open'], ['Target', 'target'], ['Walk-away ceiling', 'ceil']].forEach(([label, k]) => {
+      const o = d.offers[k], tr = el('tr', k === 'target' ? 'target' : '');
+      [label, fmtUsd(o.price), fmtUsd(o.profit), (d.loanKnown ? '' : '≤ ') + fmtUsd(o.seller), o.pctOfList != null ? o.pctOfList + '%' : '—'].forEach((v) => tr.append(el('td', null, v)));
+      t.append(tr);
+    });
+    box.append(t);
+    box.append(el('div', 'dealnote', `If the owner fixed nothing and listed with an agent, they'd net about ${fmtUsd(d.listNet)} before paying debts${d.loanKnown ? ' (' + fmtUsd(d.sellerListNet) + ' after)' : ''}, after commission and a few months of carrying costs. "vs. listing" compares each offer to that. A fair cash offer gives a clear reason to accept: speed, no repairs, no showings, no commission, and the back taxes handled.`));
+    if (!d.loanKnown) box.append(el('div', 'dealwarn', 'Loan balance unknown: equity and the owner\'s cash are upper limits. Check the recorded deed of trust (County record) or import a PropStream export with mortgage balances.'));
+    if (d.underwater) box.append(el('div', 'dealwarn', 'Little or no equity: the owner owes about what it\'s worth. A cash purchase would need the lender to agree to a short sale, or pass on it.'));
+    if (d.shortfall) box.append(el('div', 'dealwarn', 'Your offers don\'t cover what\'s owed, so the owner would have to bring money to closing (shown as −). Most owners in that spot would rather list it. Options: pay closer to the ceiling, propose terms such as seller financing or taking over the loan (get a Utah real estate attorney to review), or pass.'));
+    if (r.category === 'Commercial / mixed' || r.category === 'Multi-family') box.append(el('div', 'dealnote', 'For income property, also check the price against the rent it produces; these offers use resale value only.'));
+  };
+  draw();
+  return box;
+}
+let rescoreTimer;
+function rescoreSoon() { clearTimeout(rescoreTimer); rescoreTimer = setTimeout(() => { scoreAll(); renderKpis(); }, 400); }
+function renderAssump() {
+  const box = $('assump'); box.replaceChildren();
+  Object.keys(DEFAULT_A).forEach((k) => {
+    const row = el('label', 'wt'); row.style.gridTemplateColumns = '1fr 90px';
+    const lab = el('span', null, A_LABELS[k][0]); if (A_LABELS[k][1]) { lab.append(el('br'), el('small', 'note', A_LABELS[k][1])); }
+    const i = el('input'); i.type = 'number'; i.value = state.a[k]; i.className = 'num';
+    i.onchange = () => { state.a[k] = +i.value || 0; store.set('assump', state.a); rescore(); };
+    row.append(lab, i); box.append(row);
+  });
+}
 function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[id], patch); store.set('track', state.track); }
 
 const TCOLS = [['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
   ['years_delinquent', 'Yrs', 'n'], ['acres', 'Lot ac', 'n'], ['bldg_sqft', 'Bldg sq ft', 'n'], ['built_yr', 'Built', 'n'], ['mkt_value', 'Value', 'n'],
-  ['tax_to_value_pct', 'Tax ÷ val', 'n'], ['owner_state', 'Owner'], ['status', 'Status']];
+  ['equity_pct', 'Equity %', 'n'], ['target_offer', 'Target offer', 'n'], ['owner_type', 'Owner'], ['status', 'Status']];
 function renderTable(rows) {
   const th = $('thead');
   th.replaceChildren(...TCOLS.map(([k, label, cls]) => {
@@ -737,8 +867,8 @@ function renderTable(rows) {
     const ad = el('td'); ad.append(a); tr.append(ad);
     td(r.category); td(r.total_due ? fmtUsd(r.total_due) : '—', 'n'); td(String(r.years_delinquent), 'n');
     td(r.acres != null ? (+r.acres).toFixed(2) : '—', 'n'); td(fmtN(r.bldg_sqft), 'n'); td(r.built_yr ? String(r.built_yr) : '—', 'n');
-    td(fmtUsd(r.mkt_value), 'n'); td(r.tax_to_value_pct != null ? r.tax_to_value_pct + '%' : '—', 'n');
-    td((r.owner_state || '—') + (r.absentee_owner ? ' · away' : '')); td(t.status || 'New');
+    td(fmtUsd(r.mkt_value), 'n'); td(r.equity_pct != null ? (r.loan_known ? '' : '≤') + r.equity_pct + '%' : '—', 'n'); td(fmtUsd(r.target_offer), 'n');
+    td((r.owner_type || '—') + (r.absentee_owner ? ' · away' : '')); td(t.status || 'New');
     return tr;
   }));
 }
@@ -843,7 +973,7 @@ function rescore() { if (state.data) { scoreAll(); renderList(); } }
 function csv() {
   const cols = ['rank', 'score', 'tax_id', 'full_address', 'city', 'category', 'bldg_type', 'total_due', 'years_delinquent', 'oldest_year_owed', 'tax_sale_eligible',
     'acres', 'lot_sqft', 'bldg_sqft', 'floors', 'built_yr', 'construction', 'mkt_value', 'land_value', 'tax_to_value_pct', 'subdivision', 'owner_name', 'owner_address',
-    'owner_type', 'phone', 'email', 'owner_state', 'absentee_owner', 'owner_delinquent_parcels', 'lists', 'score_reasons', 'first_seen', 'status', 'notes', 'lat', 'lon', 'streetview_url', 'satellite_url', 'map_url', 'zillow_url', 'county_url'];
+    'owner_type', 'phone', 'email', 'equity', 'equity_pct', 'loan_known', 'target_offer', 'profit_target', 'owner_state', 'absentee_owner', 'owner_delinquent_parcels', 'lists', 'score_reasons', 'first_seen', 'status', 'notes', 'lat', 'lon', 'streetview_url', 'satellite_url', 'map_url', 'zillow_url', 'county_url'];
   const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   const lines = [cols.join(',')].concat(filtered().map((r) => { const t = state.track[r.uid] || {};
     return cols.map((c) => esc(c === 'status' ? (t.status || 'New') : c === 'notes' ? t.note : c === 'lists' ? r.tags.join('; ') : r[c])).join(','); }));
@@ -869,6 +999,7 @@ $('dir').onclick = () => { state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc
 $('viewtoggle').onclick = () => { state.ui.mode = state.ui.mode === 'table' ? 'cards' : 'table'; state.shown = Math.max(state.shown, state.ui.mode === 'table' ? 100 : 40); saveUi(); syncSortUi(); renderList(); };
 $('f-clear').onclick = () => { FILTERS.forEach((id) => { const e = $(id); if (e.type === 'checkbox') e.checked = false; else e.value = e.tagName === 'SELECT' && e.options[0] ? e.options[0].value : ''; }); saveUi(); renderList(); };
 $('more').onclick = () => { state.shown += state.ui.mode === 'table' ? 100 : 40; renderList(); };
+$('a-reset').onclick = () => { state.a = Object.assign({}, DEFAULT_A); store.set('assump', state.a); renderAssump(); rescore(); };
 $('w-reset').onclick = () => { state.w = Object.assign({}, DEFAULT_W); store.set('weights', state.w); renderWeights(); rescore(); };
 $('gkey').value = state.key;
 $('gkey').onchange = () => { state.key = $('gkey').value.trim(); store.set('gkey', state.key); renderList(); };
@@ -928,7 +1059,7 @@ $('refresh').onclick = async () => {
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-restoreUi(); renderWeights(); renderList(); updateStatus();
+restoreUi(); renderWeights(); renderAssump(); renderList(); updateStatus();
 </script>
 </body>
 </html>
