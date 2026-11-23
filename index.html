@@ -1490,14 +1490,15 @@ $('refresh').onclick = async () => {
 if (state.data) { scoreAll(); fillCities(); }
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
+const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 function applyTheme(t) {
   store.set('theme', t);
-  document.documentElement.dataset.theme = t === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
+  document.documentElement.dataset.theme = t === 'auto' ? (darkMQ && darkMQ.matches ? 'dark' : 'light') : t;
   document.querySelectorAll('#themeseg button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
   if (window.L && state.view === 'map') renderMap();
 }
 document.querySelectorAll('#themeseg button').forEach((b) => b.onclick = () => applyTheme(b.dataset.t));
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (store.get('theme', 'auto') === 'auto') applyTheme('auto'); });
+darkMQ?.addEventListener?.('change', () => { if (store.get('theme', 'auto') === 'auto') applyTheme('auto'); });
 applyTheme(store.get('theme', 'auto'));
 $('ftoggle').onclick = () => $('filterbar').classList.toggle('collapsed');
 restoreUi(); renderPlan(); renderWeights(); renderAssump(); renderList(); updateStatus();
