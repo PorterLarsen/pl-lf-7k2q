@@ -146,7 +146,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <label class="chk">Sort
         <select id="sort" aria-label="Sort by">
           <option value="score">Score</option><option value="total_due">Back taxes owed</option><option value="years_delinquent">Years behind</option>
-          <option value="mkt_value">Market value</option><option value="tax_to_value_pct">Taxes ÷ value</option><option value="equity">Estimated equity ($)</option><option value="equity_pct">Estimated equity (%)</option><option value="target_offer">Target offer</option><option value="profit_target">Your profit at target offer</option><option value="acres">Lot size</option>
+          <option value="mkt_value">Market value</option><option value="tax_to_value_pct">Taxes ÷ value</option><option value="equity">Estimated equity ($)</option><option value="equity_pct">Estimated equity (%)</option><option value="target_offer">Target offer</option><option value="cash_needed">Cash to close (live-in)</option><option value="miles_usu">Distance to USU</option><option value="profit_target">Your profit at target offer</option><option value="acres">Lot size</option>
           <option value="bldg_sqft">Building size</option><option value="built_yr">Year built</option><option value="owner_delinquent_parcels">Owner's parcel count</option>
           <option value="first_seen">Date added to list</option><option value="full_address">Address (A–Z)</option><option value="city">City (A–Z)</option>
         </select></label>
@@ -172,6 +172,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
         <label class="chk">Built <input type="number" id="f-ymin" placeholder="after" inputmode="numeric" class="num"> to <input type="number" id="f-ymax" placeholder="before" inputmode="numeric" class="num"></label>
         <select id="f-eq" aria-label="Minimum equity"><option value="">Any equity</option><option value="30">30%+ equity</option><option value="50">50%+ equity</option><option value="70">70%+ equity</option><option value="90">90%+ (likely paid off)</option></select>
         <label class="chk"><input type="checkbox" id="f-loan"> Loan balance known</label>
+        <label class="chk"><input type="checkbox" id="f-fit"> Fits my cash (live-in)</label>
+        <select id="f-usu" aria-label="Distance to USU"><option value="">Any distance to USU</option><option value="1">Within 1 mile of USU</option><option value="2">Within 2 miles of USU</option><option value="3">Within 3 miles of USU</option><option value="5">Within 5 miles of USU</option></select>
         <select id="f-yrs" aria-label="Years behind"><option value="0">Any years behind</option><option value="2">2+ years behind</option><option value="3">3+ years behind</option><option value="4">4+ years behind</option></select>
         <select id="f-tag" aria-label="Imported list"><option value="">Any imported list</option><option value="__any">On any imported list</option></select>
         <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
@@ -198,7 +200,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     <h1 style="font-size:22px;margin:4px 0">Making money from these leads</h1>
     <p class="muted">General information, not legal or financial advice. Updated Nov 23, 2026.</p>
     <nav class="toc">
-      <a href="#g-strategies">Strategies</a><a href="#g-assume">Assuming the loan</a><a href="#g-wholesale">Wholesaling</a><a href="#g-live">Buying to live in</a><a href="#g-fair">Fair &amp; legal</a><a href="#g-next">Next steps</a>
+      <a href="#g-strategies">Strategies</a><a href="#g-assume">Assuming the loan</a><a href="#g-wholesale">Wholesaling</a><a href="#g-live">Buying to live in</a><a href="#g-plan">My plan</a><a href="#g-fair">Fair &amp; legal</a><a href="#g-next">Next steps</a>
     </nav>
 
     <h2>Summary</h2>
@@ -263,6 +265,14 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     </ul>
     <p>After you move in, apply with the Cache County Assessor for the primary residential exemption, which taxes your home at 55% of its value instead of 100%.</p>
 
+    <h2 id="g-plan">My plan: live in, then wholesale, then rent near USU</h2>
+    <ul>
+      <li><b>Step 1, a home to live in.</b> With about $20,000 cash, an FHA 203(k) loan is the usual route for a fixer: 3.5% down, and the repair costs go into the same mortgage. You must live there at least a year. Asking the seller to pay closing costs stretches your cash much further. Set <i>Settings → My plan</i> to “A home to live in” and turn on the <i>Fits my cash</i> filter. Each card then shows your cash to close and an estimated monthly payment. Get pre-approved first: your income sets the loan size.</li>
+      <li><b>House hack.</b> A 2–4 unit property with FHA lets you live in one unit and rent the others, so the tenants help pay the mortgage. That folds your rental goal into step 1. Look at multi-family leads close to USU.</li>
+      <li><b>Step 2, wholesaling.</b> Without a license, contract a property you actually intend to buy, and either close on it yourself or assign the contract with full disclosure. Don't market properties you don't control. Switch the plan to “Wholesaling”.</li>
+      <li><b>Step 3, rentals.</b> Student demand is strongest within about 2 miles of USU. The “Rentals” plan favors multi-family and distance to USU. Use the <i>Within X miles of USU</i> filter and the <i>Mi to USU</i> column.</li>
+      <li><b>Is a Utah license easy?</b> It's moderate. You need 120 hours of approved pre-licensing coursework, then the state and national exam (Pearson VUE). You must apply within 90 days of passing and work under a principal broker. Expect about 3–6 months and roughly $500–$1,300 in total. After that it's 18 hours of continuing education every 2 years. It lets you market deals legally, earn commission on your own purchases, and get MLS access. Most buyers working toward their own homes and rentals skip it at first.</li>
+    </ul>
     <h2 id="g-fair">Treating sellers fairly and legal guardrails</h2>
     <ul>
       <li><b>Foreclosure rescue rules.</b> Utah treats "foreclosure rescue" done <a href="https://le.utah.gov/~2010/bills/hbillint/HB0053S01.pdf" target="_blank" rel="noopener">for compensation or with the expectation of receiving valuable consideration</a> as licensed real estate activity. With an owner facing foreclosure, don't promise to "save" the home, and never use a leaseback or buyback promise an attorney hasn't structured.</li>
@@ -293,6 +303,14 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
   </section>
 
   <section id="v-settings" hidden>
+    <div class="panel">
+      <h2>My plan</h2>
+      <p class="note">Sets how leads are scored and which numbers each card shows. You can still fine-tune the sliders below.</p>
+      <div class="wt" style="grid-template-columns:1fr 160px"><span>What I'm buying for</span>
+        <select id="p-plan" class="dash-select" style="padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"><option value="live">A home to live in</option><option value="wholesale">Wholesaling</option><option value="rental">Rentals</option></select></div>
+      <div id="planfields"></div>
+      <button class="btn" id="p-apply" type="button">Use the score settings for this plan</button>
+    </div>
     <div class="panel">
       <h2>What matters most to you</h2>
       <p class="note">Each slider sets how much that part counts toward the 0–100 score. The ranking updates as you move them.</p>
@@ -352,13 +370,18 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('cdf_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('cdf_' + k, JSON.stringify(v)); } catch (e) { console.warn('save failed', e); } }
 };
-const DEFAULT_W = {distress: 1, type: 1, motivation: 1, location: 1, quality: 1, equity: 1, signals: 1};
+const DEFAULT_W = {distress: 1, type: 1, motivation: 1, location: 1, quality: 1, equity: 1, signals: 1, usu: 0.5, fit: 1.5};
+const PLAN_W = {
+  live: {distress: 0.5, type: 1.5, motivation: 1, location: 1, quality: 1, equity: 1, signals: 1, usu: 0.5, fit: 1.5},
+  wholesale: {distress: 1.5, type: 1, motivation: 1.5, location: 1, quality: 0.5, equity: 1.5, signals: 1, usu: 0, fit: 0},
+  rental: {distress: 1, type: 1.5, motivation: 1, location: 0.5, quality: 1, equity: 1, signals: 1, usu: 2, fit: 0.5}};
 const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', motivation: 'Owner motivation', location: 'Location',
-  quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists'};
+  quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists', usu: 'Close to USU', fit: 'Fits my cash (live-in)'};
 const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
-  'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan'];
-const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan'];
+  'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
+const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
 const TEXT_SORTS = new Set(['full_address', 'city']);
+const LOW_FIRST = new Set(['full_address', 'city', 'miles_usu', 'cash_needed']);
 let state = {
   data: window.CDF_PRELOAD || store.get('data', null),   // {fetchedAt, backYear, rows, newIds, extraDetails}
   rows: [],                                              // tax rows + imported extra leads, scored
@@ -541,6 +564,46 @@ function buildRows() {
   state.rows = tax.concat([...extra.values()]);
 }
 
+/* ------------------------------------------------------------------ my plan */
+const DEFAULT_P = {plan: 'live', cash: 20000, downPct: 3.5, closePct: 3, rate: 6.75, taxIns: 350, mipPct: 0.55};
+const P_LABELS = {cash: ['Cash I can put in ($)', 'down payment + closing costs'], downPct: ['Down payment (%)', 'FHA minimum is 3.5%'],
+  closePct: ['Closing costs (% of price)', 'lender, title, prepaid taxes and insurance'], rate: ['Mortgage rate (%)', 'ask a lender for today\'s rate'],
+  taxIns: ['Taxes + insurance ($/month)', ''], mipPct: ['FHA mortgage insurance (%/yr)', '']};
+state.p = Object.assign({}, DEFAULT_P, store.get('plan', {}));
+const USU = [41.7409, -111.8136];   // USU Old Main
+function milesTo(lat, lon, [la2, lo2]) {
+  if (lat == null || lon == null) return null;
+  const R = 3958.8, rad = Math.PI / 180, dLa = (la2 - lat) * rad, dLo = (lo2 - lon) * rad;
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(lat * rad) * Math.cos(la2 * rad) * Math.sin(dLo / 2) ** 2;
+  return +(2 * R * Math.asin(Math.sqrt(a))).toFixed(1);
+}
+function liveIn(price, repairs) {          // FHA 203(k)-style: repairs financed into the loan
+  const p = state.p, total = price + (repairs || 0);
+  const down = total * p.downPct / 100, closing = price * p.closePct / 100, loan = total - down;
+  const r = p.rate / 1200, n = 360, pi = r ? loan * r / (1 - Math.pow(1 + r, -n)) : loan / n;
+  return {down: Math.round(down), closing: Math.round(closing), cash: Math.round(down + closing), loan: Math.round(loan),
+    monthly: Math.round(pi + loan * p.mipPct / 1200 + p.taxIns)};
+}
+function maxPriceForCash() {               // biggest price (incl. repairs) your cash covers
+  const p = state.p; return Math.floor(p.cash / ((p.downPct + p.closePct) / 100) / 1000) * 1000;
+}
+function renderPlan() {
+  $('p-plan').value = state.p.plan;
+  const box = $('planfields'); box.replaceChildren();
+  Object.keys(P_LABELS).forEach((k) => {
+    const row = el('label', 'wt'); row.style.gridTemplateColumns = '1fr 110px';
+    const lab = el('span', null, P_LABELS[k][0]); if (P_LABELS[k][1]) lab.append(el('br'), el('small', 'note', P_LABELS[k][1]));
+    const i = el('input'); i.type = 'number'; i.step = 'any'; i.value = state.p[k]; i.className = 'num'; i.style.width = '100px';
+    i.onchange = () => { state.p[k] = +i.value || 0; store.set('plan', state.p); renderPlanNote(); rescore(); };
+    row.append(lab, i); box.append(row);
+  });
+  const note = el('p', 'note'); note.id = 'plannote'; box.append(note); renderPlanNote();
+}
+function renderPlanNote() {
+  const n = $('plannote'); if (!n) return;
+  n.textContent = `With ${fmtUsd(state.p.cash)} cash at ${state.p.downPct}% down and ${state.p.closePct}% closing costs, you can cover a purchase of about ${fmtUsd(maxPriceForCash())} including repairs financed into the loan. Asking the seller to pay closing costs (FHA allows up to 6%) raises that to about ${fmtUsd(Math.floor(state.p.cash / (state.p.downPct / 100) / 1000) * 1000)}. Your income decides how big a loan you qualify for — get pre-approved.`;
+}
+
 /* ------------------------------------------------------------------ deal analysis */
 const DEFAULT_A = {sellCost: 8, buyCost: 3, holdPct: 2, profitMin: 10, openPct: 65, targetPct: 70, landOpen: 40, landTarget: 50, landCeil: 65,
   rehabOld: 35, rehabMid: 22, rehabNew: 10, rehabCap: 30};
@@ -676,7 +739,7 @@ function scoreAll() {
     add('distress', r.tax_sale_eligible ? 5 : 0, 5);
     if (r.tax_sale_eligible) why.push('tax-sale eligible May ' + (by + 2));
     r.category = category(r.bldg_type);
-    if (r.bldg_type) add('type', typePts(r.bldg_type), 25);
+    if (r.bldg_type) { let tp = typePts(r.bldg_type); if (state.p.plan === 'rental') tp = r.category === 'Multi-family' ? 25 : r.category === 'Home' ? Math.min(tp, 20) : tp; if (state.p.plan === 'live' && r.category === 'Land') tp = 6; add('type', tp, 25); }
     r.absentee_owner = isAbsentee(r.address, r.city, r.owner_address);
     r.owner_state = ownerState(r.owner_address);
     r.owner_delinquent_parcels = port[r.owner_address] || 1;
@@ -706,14 +769,22 @@ function scoreAll() {
       add('signals', Math.min(15, r.tags.length * 10), 15);
       if (r.tags.length) why.push('on ' + r.tags.join(', '));
     }
-    const got = parts.reduce((s, [wt, p]) => s + wt * p, 0), poss = parts.reduce((s, [wt, , q]) => s + wt * q, 0);
-    r.score = poss ? +(100 * got / poss).toFixed(1) : 0;
-    r.score_reasons = why.join('; ');
     r.first_seen = state.seen[r.tax_id] || '';
     links(r);
     const da = analyze(r);
+    r.miles_usu = milesTo(r.lat, r.lon, USU);
+    if (r.miles_usu != null) { add('usu', r.miles_usu <= 1 ? 10 : r.miles_usu <= 2 ? 8 : r.miles_usu <= 4 ? 5 : r.miles_usu <= 8 ? 2 : 0, 10); if (r.miles_usu <= 2 && state.p.plan === 'rental') why.push(r.miles_usu + ' mi from USU'); }
+    r.cash_needed = null; r.live_monthly = null;
+    if (da.offers && r.category !== 'Land' && r.category !== 'Other') {
+      const li = liveIn(da.offers.target.price, da.repairs); r.cash_needed = li.cash; r.live_monthly = li.monthly;
+      add('fit', li.cash <= state.p.cash ? 10 : li.cash <= state.p.cash * 1.25 ? 5 : 0, 10);
+      if (state.p.plan === 'live' && li.cash <= state.p.cash) why.push('fits your cash to live in');
+    }
     r.equity = da.equity ?? null; r.equity_pct = da.equityPct ?? null; r.loan_known = da.loanKnown;
     r.target_offer = da.offers ? da.offers.target.price : null; r.profit_target = da.offers ? da.offers.target.profit : null;
+    const got = parts.reduce((s, [wt, p]) => s + wt * p, 0), poss = parts.reduce((s, [wt, , q]) => s + wt * q, 0);
+    r.score = poss ? +(100 * got / poss).toFixed(1) : 0;
+    r.score_reasons = why.join('; ');
   });
   rows.sort((a, b) => b.score - a.score || b.total_due - a.total_due);
   rows.forEach((r, i) => { r.rank = i + 1; r.uid = r.tax_id || r.import_key; });
@@ -777,6 +848,8 @@ function filtered() {
     if ($('f-phone').checked && !(r.phone || r.email)) return false;
     if ($('f-eq').value && !(r.equity_pct >= +$('f-eq').value)) return false;
     if ($('f-loan').checked && !r.loan_known) return false;
+    if ($('f-fit').checked && !(r.cash_needed != null && r.cash_needed <= state.p.cash)) return false;
+    if ($('f-usu').value && !(r.miles_usu != null && r.miles_usu <= +$('f-usu').value)) return false;
     if (q && ![r.full_address, r.owner_name, r.owner_address, r.tax_id, r.bldg_type, t.note, r.tags.join(' '), r.phone, r.email].join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -939,6 +1012,17 @@ function dealBlock(r) {
     if (!d.loanKnown) box.append(el('div', 'dealwarn', 'Loan balance unknown: equity and the owner\'s cash are upper limits. Check the recorded deed of trust (County record) or import a PropStream export with mortgage balances.'));
     if (d.underwater) box.append(el('div', 'dealwarn', 'Little or no equity: the owner owes about what it\'s worth. A cash purchase would need the lender to agree to a short sale, or pass on it.'));
     if (d.shortfall) box.append(el('div', 'dealwarn', 'Your offers don\'t cover what\'s owed, so the owner would have to bring money to closing (shown as −). Most owners in that spot would rather list it. Options: pay closer to the ceiling, propose terms such as seller financing or taking over the loan (get a Utah real estate attorney to review), or pass.'));
+    if (r.category !== 'Land' && r.category !== 'Other') {
+      const li = liveIn(d.offers.target.price, d.repairs), fits = li.cash <= state.p.cash;
+      const pl = el('div', 'eq'); pl.style.marginTop = '8px';
+      const kv2 = (k, v) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); pl.append(x); };
+      kv2('To live in it (FHA 203k at target price)', 'cash to close ' + fmtUsd(li.cash) + (fits ? ' ✓ fits your ' : ' — over your ') + fmtUsd(state.p.cash));
+      kv2('Loan incl. repairs', fmtUsd(li.loan)); kv2('Est. payment', fmtUsd(li.monthly) + '/mo');
+      box.append(el('h4', null, 'If you move in'), pl);
+      if (r.units > 4) box.append(el('div', 'dealwarn', 'FHA loans cover 1–4 units only; 5+ units needs a commercial loan, usually 20–25% down.'));
+      box.append(el('div', 'dealnote', 'Assumes an FHA 203(k) loan that rolls the repairs into the mortgage: ' + state.p.downPct + '% down, ' + state.p.closePct + '% closing costs, ' + state.p.rate + '% rate. You must live there at least a year. Asking the seller to cover closing costs cuts your cash needed by ' + fmtUsd(li.closing) + '. Change these under Settings → My plan.'));
+    }
+    if (r.miles_usu != null) box.append(el('div', 'dealnote', `${r.miles_usu} miles from USU (Old Main). ${r.miles_usu <= 2 ? 'Good rental location: student and staff demand.' : r.miles_usu <= 4 ? 'Workable for rentals; students prefer under 2 miles.' : 'Far for student renters; family rentals instead.'}`));
     if (r.category === 'Commercial / mixed' || r.category === 'Multi-family') box.append(el('div', 'dealnote', 'For income property, also check the price against the rent it produces; these offers use resale value only.'));
   };
   draw();
@@ -960,12 +1044,12 @@ function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[
 
 const TCOLS = [['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
   ['years_delinquent', 'Yrs', 'n'], ['acres', 'Lot ac', 'n'], ['bldg_sqft', 'Bldg sq ft', 'n'], ['built_yr', 'Built', 'n'], ['mkt_value', 'Value', 'n'],
-  ['equity_pct', 'Equity %', 'n'], ['target_offer', 'Target offer', 'n'], ['owner_type', 'Owner'], ['status', 'Status']];
+  ['equity_pct', 'Equity %', 'n'], ['target_offer', 'Target offer', 'n'], ['cash_needed', 'Cash to move in', 'n'], ['miles_usu', 'Mi to USU', 'n'], ['owner_type', 'Owner'], ['status', 'Status']];
 function renderTable(rows) {
   const th = $('thead');
   th.replaceChildren(...TCOLS.map(([k, label, cls]) => {
     const h = el('th', (cls || '') + (state.ui.sort === k ? ' on' : ''), label + (state.ui.sort === k ? (state.ui.dir === 'asc' ? ' ▲' : ' ▼') : ''));
-    if (k !== 'status') h.onclick = () => { if (state.ui.sort === k) state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; else { state.ui.sort = k === 'rank' ? 'score' : k; state.ui.dir = TEXT_SORTS.has(k) ? 'asc' : 'desc'; } saveUi(); syncSortUi(); renderList(); };
+    if (k !== 'status') h.onclick = () => { if (state.ui.sort === k) state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; else { state.ui.sort = k === 'rank' ? 'score' : k; state.ui.dir = LOW_FIRST.has(k) ? 'asc' : 'desc'; } saveUi(); syncSortUi(); renderList(); };
     return h;
   }));
   $('tbody').replaceChildren(...rows.slice(0, state.shown).map((r) => {
@@ -977,6 +1061,7 @@ function renderTable(rows) {
     td(r.category); td(r.total_due ? fmtUsd(r.total_due) : '—', 'n'); td(String(r.years_delinquent), 'n');
     td(r.acres != null ? (+r.acres).toFixed(2) : '—', 'n'); td(fmtN(r.bldg_sqft), 'n'); td(r.built_yr ? String(r.built_yr) : '—', 'n');
     td(fmtUsd(r.mkt_value), 'n'); td(r.equity_pct != null ? (r.loan_known ? '' : '≤') + r.equity_pct + '%' : '—', 'n'); td(fmtUsd(r.target_offer), 'n');
+    td(r.cash_needed != null ? fmtUsd(r.cash_needed) + (r.cash_needed <= state.p.cash ? ' ✓' : '') : '—', 'n'); td(r.miles_usu != null ? r.miles_usu.toFixed(1) : '—', 'n');
     td((r.owner_type || '—') + (r.absentee_owner ? ' · away' : '')); td(t.status || 'New');
     return tr;
   }));
@@ -1082,7 +1167,7 @@ function rescore() { if (state.data) { scoreAll(); renderList(); } }
 function csv() {
   const cols = ['rank', 'score', 'tax_id', 'full_address', 'city', 'category', 'bldg_type', 'total_due', 'years_delinquent', 'oldest_year_owed', 'tax_sale_eligible',
     'acres', 'lot_sqft', 'bldg_sqft', 'floors', 'built_yr', 'construction', 'mkt_value', 'land_value', 'tax_to_value_pct', 'subdivision', 'owner_name', 'owner_address',
-    'owner_type', 'phone', 'email', 'equity', 'equity_pct', 'loan_known', 'target_offer', 'profit_target', 'owner_state', 'absentee_owner', 'owner_delinquent_parcels', 'lists', 'score_reasons', 'first_seen', 'status', 'notes', 'lat', 'lon', 'streetview_url', 'satellite_url', 'map_url', 'zillow_url', 'county_url'];
+    'owner_type', 'phone', 'email', 'equity', 'equity_pct', 'loan_known', 'target_offer', 'profit_target', 'cash_needed', 'live_monthly', 'miles_usu', 'owner_state', 'absentee_owner', 'owner_delinquent_parcels', 'lists', 'score_reasons', 'first_seen', 'status', 'notes', 'lat', 'lon', 'streetview_url', 'satellite_url', 'map_url', 'zillow_url', 'county_url'];
   const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   const lines = [cols.join(',')].concat(filtered().map((r) => { const t = state.track[r.uid] || {};
     return cols.map((c) => esc(c === 'status' ? (t.status || 'New') : c === 'notes' ? t.note : c === 'lists' ? r.tags.join('; ') : r[c])).join(','); }));
@@ -1103,7 +1188,7 @@ function show(v) {
 }
 document.querySelectorAll('nav button').forEach((b) => b.onclick = () => show(b.dataset.view));
 FILTERS.forEach((id) => $(id).addEventListener($(id).tagName === 'INPUT' && $(id).type !== 'checkbox' ? 'input' : 'change', () => { state.shown = 40; state.mapFitted = false; saveUi(); renderList(); }));
-$('sort').onchange = () => { state.ui.sort = $('sort').value; state.ui.dir = TEXT_SORTS.has(state.ui.sort) ? 'asc' : 'desc'; saveUi(); syncSortUi(); renderList(); };
+$('sort').onchange = () => { state.ui.sort = $('sort').value; state.ui.dir = LOW_FIRST.has(state.ui.sort) ? 'asc' : 'desc'; saveUi(); syncSortUi(); renderList(); };
 $('dir').onclick = () => { state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; saveUi(); syncSortUi(); renderList(); };
 $('viewtoggle').onclick = () => { state.ui.mode = state.ui.mode === 'table' ? 'cards' : 'table'; state.shown = Math.max(state.shown, state.ui.mode === 'table' ? 100 : 40); saveUi(); syncSortUi(); renderList(); };
 $('f-clear').onclick = () => { FILTERS.forEach((id) => { const e = $(id); if (e.type === 'checkbox') e.checked = false; else e.value = e.tagName === 'SELECT' && e.options[0] ? e.options[0].value : ''; }); saveUi(); renderList(); };
@@ -1168,7 +1253,9 @@ $('refresh').onclick = async () => {
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-restoreUi(); renderWeights(); renderAssump(); renderList(); updateStatus();
+$('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
+$('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
+restoreUi(); renderPlan(); renderWeights(); renderAssump(); renderList(); updateStatus();
 </script>
 </body>
 </html>
