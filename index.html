@@ -110,6 +110,15 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
 .offers tr.target td{font-weight:700;background:var(--accent2)}
 .dealnote{font-size:12px;color:var(--muted);margin-top:6px}
 .dealwarn{font-size:13px;color:var(--warn);margin-top:6px}
+.guide{max-width:760px;margin:0 auto;font-size:15px;line-height:1.55}
+.guide h2{font-size:20px;margin:22px 0 6px}
+.guide h3{font-size:16px;margin:16px 0 4px}
+.guide p,.guide li{margin:6px 0}
+.guide a{color:var(--accent)}
+.guide .tablewrap table{font-size:13px}
+.guide .toc{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.guide .toc a{font-size:13px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;text-decoration:none;background:var(--panel)}
+.guide .muted{color:var(--muted);font-size:13px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -119,7 +128,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     <div><h1>Cache Lead Finder</h1><div class="status" id="status">No data yet</div></div>
     <button class="btn primary" id="refresh">Refresh</button>
   </div>
-  <nav><button data-view="list" class="on">Leads</button><button data-view="map">Map</button><button data-view="settings">Settings</button></nav>
+  <nav><button data-view="list" class="on">Leads</button><button data-view="map">Map</button><button data-view="guide">Guide</button><button data-view="settings">Settings</button></nav>
   <div class="progress"><div id="bar"></div></div>
 </header>
 <main>
@@ -182,6 +191,106 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
   </section>
 
   <section id="v-map" hidden><div id="map"></div><p class="note">Dot color shows the score: green 75+, amber 60–74, gray below 60. Tap a dot for details.</p></section>
+
+
+  <section id="v-guide" hidden>
+   <article class="guide">
+    <h1 style="font-size:22px;margin:4px 0">Making money from these leads</h1>
+    <p class="muted">General information, not legal or financial advice. Updated Nov 23, 2026.</p>
+    <nav class="toc">
+      <a href="#g-strategies">Strategies</a><a href="#g-assume">Assuming the loan</a><a href="#g-wholesale">Wholesaling</a><a href="#g-live">Buying to live in</a><a href="#g-fair">Fair &amp; legal</a><a href="#g-next">Next steps</a>
+    </nav>
+
+    <h2>Summary</h2>
+    <p>This list is owners who are behind on property taxes: people and companies under some financial or practical pressure. Investors profit from lists like this in five main ways: wholesaling, fixing and reselling, buying to rent, buying on terms (seller financing or taking over the existing loan), and bidding at the county's May tax sale.</p>
+    <p>The common thread is buying below what a retail buyer would pay. The discount comes from what you offer in exchange: speed, cash, no repairs, no showings, no commission, and the back taxes handled. A deal is fair when the owner ends up better off than their realistic alternative, which for many is losing the property at tax sale or foreclosure, or a slow, expensive retail sale.</p>
+    <p>For most of these owners the first step is the same: a respectful letter to the tax-bill address, then a conversation about what they actually need.</p>
+
+    <h2 id="g-strategies">Common profit strategies</h2>
+    <div class="tablewrap"><table class="ltable">
+      <thead><tr><th>Strategy</th><th>How it works</th><th>Cash needed</th><th>Profit comes from</th><th>Main risk</th></tr></thead>
+      <tbody>
+        <tr><td>Wholesaling</td><td>Get a property under contract below value, then sell the contract to another investor</td><td>Low</td><td>The assignment fee</td><td>Utah licensing rules; deals fall through</td></tr>
+        <tr><td>Fix and flip</td><td>Buy, renovate, resell within months</td><td>High</td><td>Resale minus purchase, repairs, interest, selling costs</td><td>Repair overruns, slow resale</td></tr>
+        <tr><td>Buy and hold / BRRRR</td><td>Buy below value, fix, rent, refinance to pull cash out, repeat</td><td>High up front</td><td>Rent, loan paydown, appreciation</td><td>Tenants, vacancy, low appraisal</td></tr>
+        <tr><td>Seller financing</td><td>The owner sells to you and acts as the bank</td><td>Low–medium</td><td>Buying without a bank on good terms</td><td>Owner must own it free and clear or nearly</td></tr>
+        <tr><td>Taking over the loan</td><td>Take the deed and keep paying the owner's mortgage</td><td>Low–medium</td><td>Keeping a low old interest rate</td><td>Lender can call the loan due</td></tr>
+        <tr><td>May tax sale</td><td>Bid at the county auction on parcels five years behind</td><td>Cash at sale</td><td>Buying well under value when bidding is light</td><td>Tax deed, not warranty deed; hard to insure title</td></tr>
+      </tbody></table></div>
+    <p>Vacant land, like the Hyrum and northeast Logan lots on the list, often trades at 25–50% of value from tired owners and resells to builders or neighbors. Most flip and wholesale buyers cap their price at 70% of after-repair value minus repairs; the app's target offer uses the same rule.</p>
+
+    <h2 id="g-assume">Do people assume the loan?</h2>
+    <p>Sometimes, but less often than investor marketing suggests, and there are two very different ways.</p>
+    <p><b>Formal assumption (with the lender's approval).</b> Most FHA, VA and USDA loans are assumable. You apply with the owner's servicer and qualify on credit, income and debt-to-income. With FHA you must live in the home; <a href="https://www.redfin.com/blog/are-fha-loans-assumable/" target="_blank" rel="noopener">FHA loans do not allow assumptions for investment properties</a>. You also pay the owner's equity in cash or with a second loan. Conventional loans are usually not assumable.</p>
+    <p><b>Subject-to (without asking the lender).</b> The owner deeds you the house and you keep making their payments in their name. It's fast and needs little cash, but federal law (<a href="https://www.law.cornell.edu/uscode/text/12/1701j-3" target="_blank" rel="noopener">12 U.S.C. 1701j-3</a>) lets lenders call the whole loan due on a transfer. The exceptions cover family transfers, divorce, inheritance and living trusts, not sales to investors. Lenders rarely call loans that are being paid, but they can, and the owner's credit rides on your payments.</p>
+    <p>A tax-delinquent owner is often behind on the mortgage too, so check the loan status first. Have a Utah real estate attorney draft any subject-to deal, and use a loan servicing company so the owner can see every payment.</p>
+
+    <h2 id="g-wholesale">Wholesaling in Utah</h2>
+    <p>It's the most common way to start because it needs little cash, but in Utah it carries real licensing risk.</p>
+    <ol>
+      <li>Find a motivated owner and agree on a price well under value, for example 60–70% of after-repair value minus repairs.</li>
+      <li>Sign a purchase contract naming the buyer as "you and/or assigns", with an inspection period that lets you exit.</li>
+      <li>Find a cash investor who will pay more, then assign the contract for a fee, or buy and resell the same day (a double close).</li>
+      <li>The investor closes with the owner at a title company and your fee is paid at closing.</li>
+    </ol>
+    <p><b>The licensing problem.</b> The Utah Division of Real Estate says <a href="https://db.realestate.utah.gov/real-estate" target="_blank" rel="noopener">anyone who offers or attempts to offer the purchase, sale, lease, management, or exchange of another person's property with the expectation of receiving valuable consideration must first obtain a Utah real estate license</a>, and advertising counts as an offer. Marketing a house you don't own can look exactly like that.</p>
+    <ul>
+      <li>Double close (actually buy, then resell) rather than advertise someone else's house.</li>
+      <li>Market only to a few investors you know, as an assignment of your contract.</li>
+      <li>Or get licensed: 120 hours of prelicensing education in Utah.</li>
+      <li>Tell the owner in writing that you may assign or resell for a profit.</li>
+    </ul>
+
+    <h2 id="g-live">Buying one to live in</h2>
+    <p>Often the best first deal: owner-occupant loans need less down and cost less than investor loans. Buy directly from the owner, not at the tax sale, because a tax deed makes a mortgage and title insurance hard to get.</p>
+    <h3>Financing</h3>
+    <ul>
+      <li>FHA: 3.5% down with a 580 credit score, on 1–4 unit properties. Live in one unit of a duplex or 4-plex and rent the others ("house hacking").</li>
+      <li>FHA 203(k) or a conventional renovation loan rolls repairs into the mortgage.</li>
+      <li>Assuming the owner's FHA or VA loan can keep a low rate if you qualify and cover their equity.</li>
+      <li>Owner-occupant loans usually require moving in within 60 days and living there at least a year.</li>
+    </ul>
+    <h3>Before you commit</h3>
+    <ul>
+      <li>Title search: mortgages, judgments, tax liens, HOA dues, mechanic's liens, all paid at or before closing.</li>
+      <li>Back property taxes paid from the sale proceeds at closing.</li>
+      <li>Full inspection, plus sewer scope, radon and roof on older homes.</li>
+      <li>Repair bids from a contractor, not the app's estimate.</li>
+      <li>Who lives there now. Tenants keep their lease rights after a sale, and eviction takes weeks or months.</li>
+      <li>Zoning and permits, especially for a basement apartment or addition.</li>
+      <li>Insurance quote; vacant or rough homes cost more to insure.</li>
+      <li>Commute, schools and the street at night.</li>
+    </ul>
+    <p>After you move in, apply with the Cache County Assessor for the primary residential exemption, which taxes your home at 55% of its value instead of 100%.</p>
+
+    <h2 id="g-fair">Treating sellers fairly and legal guardrails</h2>
+    <ul>
+      <li><b>Foreclosure rescue rules.</b> Utah treats "foreclosure rescue" done <a href="https://le.utah.gov/~2010/bills/hbillint/HB0053S01.pdf" target="_blank" rel="noopener">for compensation or with the expectation of receiving valuable consideration</a> as licensed real estate activity. With an owner facing foreclosure, don't promise to "save" the home, and never use a leaseback or buyback promise an attorney hasn't structured.</li>
+      <li><b>Show the owner the math.</b> The app's comparison to listing explains your price honestly.</li>
+      <li><b>Give them time.</b> Encourage owners to talk with family, an agent or an attorney before signing.</li>
+      <li><b>Disclose your intent</b> to resell or assign, in writing.</li>
+      <li><b>Calls and texts.</b> Check the National Do Not Call Registry first and stop when asked. Letters are the safest first contact.</li>
+      <li><b>Tax sale protections.</b> Owners can protest a sale within a deadline after it, and leftover money from the sale belongs to the former owner.</li>
+    </ul>
+
+    <h2 id="g-next">Next steps</h2>
+    <ol>
+      <li>Pick a strategy for your first deal.</li>
+      <li>Book an hour with a Utah real estate attorney to review a purchase contract and your approach.</li>
+      <li>Talk with a lender about FHA, 203(k) and assumption options if you might live in it.</li>
+      <li>Mail letters to your top 20 leads and track replies with the statuses on each card.</li>
+    </ol>
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://db.realestate.utah.gov/real-estate" target="_blank" rel="noopener">Utah Division of Real Estate: licensing requirement</a></li>
+      <li><a href="https://le.utah.gov/~2010/bills/hbillint/HB0053S01.pdf" target="_blank" rel="noopener">Utah H.B. 53 (2010): Foreclosure Rescue and Loan Modification Amendments</a></li>
+      <li><a href="https://www.law.cornell.edu/uscode/text/12/1701j-3" target="_blank" rel="noopener">12 U.S.C. 1701j-3: due-on-sale clauses</a></li>
+      <li><a href="https://www.redfin.com/blog/are-fha-loans-assumable/" target="_blank" rel="noopener">Redfin: FHA loan assumption requirements</a></li>
+      <li><a href="https://auditor.utahcounty.gov/may-tax-sale/policies" target="_blank" rel="noopener">Utah County: tax sale procedures and tax deeds</a></li>
+      <li><a href="https://www.utcourts.gov/en/self-help/case-categories/housing/foreclosure.html" target="_blank" rel="noopener">Utah Courts: foreclosure process</a></li>
+    </ul>
+   </article>
+  </section>
 
   <section id="v-settings" hidden>
     <div class="panel">
@@ -988,7 +1097,7 @@ function download(name, text, type) {
 function show(v) {
   state.view = v;
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
-  ['list', 'map', 'settings'].forEach((k) => { $('v-' + k).hidden = k !== v; });
+  ['list', 'map', 'guide', 'settings'].forEach((k) => { $('v-' + k).hidden = k !== v; });
   if (v === 'map') renderMap();
   if (v === 'settings') renderImports();
 }
