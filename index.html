@@ -55,7 +55,11 @@ main{max-width:1100px;margin:0 auto;padding:12px}
 .links{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .links a{font-size:13px;text-decoration:none;border:1px solid var(--line);border-radius:6px;padding:4px 8px;color:var(--accent)}
 .photos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
-.photos img{width:100%;border-radius:6px;background:var(--lo);aspect-ratio:16/10;object-fit:cover}
+.photos img{width:100%;border-radius:6px;background:var(--lo);aspect-ratio:16/10;object-fit:cover;display:block}
+.photos figure{position:relative;margin:0}
+.photos figure svg{position:absolute;left:0;top:0;width:100%;aspect-ratio:16/10;pointer-events:none}
+.photos figcaption{font-size:11px;color:var(--mute,#777);margin-top:2px}
+.photos a{display:block}
 .track{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;margin-top:6px}
 .track select{padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
 .track textarea{flex:1 1 200px;min-height:34px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);resize:vertical}
@@ -351,8 +355,11 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div class="implist" id="implist"></div>
     </div>
     <div class="panel">
-      <h2>Street View photos (optional)</h2>
-      <p class="note">Paste a Google Maps API key with the Street View Static API and Maps Static API turned on, and each lead shows a street photo and a satellite photo. Restrict the key to this site's address in Google Cloud. Google charges about $7 per 1,000 images after its free monthly credit. The key stays on this device.</p>
+      <h2>Photos</h2>
+      <p class="note">Every lead shows a free aerial photo with the lot lines drawn on it, plus a neighborhood view. To add street-level photos of the house, paste one or both keys below. They stay on this device.</p>
+      <p class="note"><b>Mapillary (free):</b> sign up at mapillary.com, open Developers → Register application, and copy the <i>Client Token</i>. Shows the closest crowd-sourced street photo and the month it was taken. Coverage is good on main roads and spotty elsewhere.</p>
+      <input type="password" id="mlykey" placeholder="Mapillary client token (MLY|…)" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:10px">
+      <p class="note"><b>Google Street View:</b> paste a Google Maps API key with the Street View Static API turned on. Restrict the key to this site's address in Google Cloud. Google gives a free monthly allowance, then charges about $7 per 1,000 photos.</p>
       <input type="password" id="gkey" placeholder="Google Maps API key" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel)">
     </div>
     <div class="panel">
@@ -452,6 +459,12 @@ function centroid(g) {
   let x = 0, y = 0; r.forEach((p) => { x += p[0]; y += p[1]; });
   return [+(y / r.length).toFixed(6), +(x / r.length).toFixed(6)];
 }
+function ringOf(g) {
+  const r = g && g.rings && g.rings[0];
+  if (!r || r.length < 3) return null;
+  const step = Math.ceil(r.length / 60);
+  return r.filter((_, i) => i % step === 0).map((p) => [+p[0].toFixed(6), +p[1].toFixed(6)]);
+}
 function backYear(d = new Date()) { return d.getMonth() === 11 ? d.getFullYear() : d.getFullYear() - 1; }
 
 async function fetchDetails(ids, onStep) {
@@ -460,9 +473,10 @@ async function fetchDetails(ids, onStep) {
     const chunk = ids.slice(i, i + 50);
     try {
       const j = await jsonp(ENDPOINTS.LIR, {where: 'PARCEL_ID IN (' + chunk.map((t) => "'" + String(t).replace(/'/g, '') + "'").join(',') + ')',
-        outFields: 'PARCEL_ID,PARCEL_ACRES,TOTAL_MKT_VALUE,LAND_MKT_VALUE,PROP_CLASS,BLDG_SQFT,FLOORS_CNT,BUILT_YR,EFFBUILT_YR,CONST_MATERIAL,SUBDIV_NAME', returnGeometry: 'false'});
+        outFields: 'PARCEL_ID,PARCEL_ACRES,TOTAL_MKT_VALUE,LAND_MKT_VALUE,PROP_CLASS,BLDG_SQFT,FLOORS_CNT,BUILT_YR,EFFBUILT_YR,CONST_MATERIAL,SUBDIV_NAME', returnGeometry: 'true', outSR: '4326', geometryPrecision: '6'});
       (j.features || []).forEach((f) => {
-        const a = f.attributes, e = det[a.PARCEL_ID] || (det[a.PARCEL_ID] = {acres: a.PARCEL_ACRES, mkt_value: a.TOTAL_MKT_VALUE, land_value: a.LAND_MKT_VALUE, prop_class: a.PROP_CLASS, subdivision: a.SUBDIV_NAME, bldg_sqft: 0, floors: null, built_yr: null, construction: null});
+        const a = f.attributes, e0 = det[a.PARCEL_ID], e = det[a.PARCEL_ID] || (det[a.PARCEL_ID] = {acres: a.PARCEL_ACRES, mkt_value: a.TOTAL_MKT_VALUE, land_value: a.LAND_MKT_VALUE, prop_class: a.PROP_CLASS, subdivision: a.SUBDIV_NAME, bldg_sqft: 0, floors: null, built_yr: null, construction: null});
+        if (!e0 && f.geometry) { const rg = ringOf(f.geometry); if (rg) { e.ring = rg; [e.lat, e.lon] = centroid(f.geometry); } }
         if (a.BLDG_SQFT) {
           e.bldg_sqft += a.BLDG_SQFT; e.floors = Math.max(e.floors || 0, a.FLOORS_CNT || 0) || null;
           e.construction = e.construction || (a.CONST_MATERIAL ? String(a.CONST_MATERIAL).replace(/\s+/g, ' ').trim() : null);
@@ -490,7 +504,7 @@ async function fetchAll() {
         tax_id: pickPref(a, 'tax_id', 'parcel_current'), total_due: +pick(a, 'all_yr_total_due') || 0,
         city: pick(a, 'property_city_hs') || '', bldg_type: pick(a, 'building_specific_type_hs') || '', units: pick(a, 'total_units'),
         address: pick(a, 'address_complete') || '', owner_address: pick(a, 'owner_address_complete') || '',
-        core_url: pick(a, 'core_owner_maps_url') || '', lat, lon, owed: []
+        core_url: pick(a, 'core_owner_maps_url') || '', lat, lon, ring: ringOf(f.geometry), owed: []
       };
       for (let k = 1; k <= 5; k++) r.owed.push(+pick(a, 'back' + k + '_total') || 0);
       if (r.tax_id) rows.push(r);
@@ -894,6 +908,80 @@ function linkList(r) {
   return [[r.streetview_url, 'Street View'], [r.satellite_url, 'Satellite'], [r.map_url, 'Map'], [r.zillow_url, 'Zillow'], [r.county_url, 'County record'],
     ['https://www.utcourts.gov/en/court-records-publications/records/xchange.html', 'Court search']].filter(([h]) => h && /^https?:\/\//.test(h));
 }
+/* ------------------------------------------------------------------ photos */
+const merc = (lon, lat) => [lon * 20037508.34 / 180, Math.log(Math.tan((90 + lat) * Math.PI / 360)) * 6378137];
+const AERIAL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export';
+function aerial(r, wideM, outline) {     // free Esri aerial image, with lot outline or a center marker drawn on top
+  const W = 640, H = 400, pts = (r.ring || []).map(([lo, la]) => merc(lo, la));
+  let cx, cy, span;
+  if (pts.length) {
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    cx = (Math.min(...xs) + Math.max(...xs)) / 2; cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    span = outline ? Math.max(70, (Math.max(...xs) - Math.min(...xs)) * 1.6, (Math.max(...ys) - Math.min(...ys)) * 1.6 * W / H) : wideM;
+  } else { [cx, cy] = merc(r.lon, r.lat); span = outline ? 90 : wideM; }
+  span = Math.min(span, 3000);
+  const hw = span / 2, hh = hw * H / W, x0 = cx - hw, y1 = cy + hh;
+  const fig = el('figure'), a = el('a'); a.href = r.satellite_url || r.map_url || '#'; a.target = '_blank'; a.rel = 'noopener';
+  const img = el('img'); img.loading = 'lazy'; img.alt = (outline ? 'Aerial photo of the lot at ' : 'Aerial photo of the area around ') + (r.full_address || r.tax_id);
+  img.src = `${AERIAL}?bbox=${(cx - hw).toFixed(1)},${(cy - hh).toFixed(1)},${(cx + hw).toFixed(1)},${(cy + hh).toFixed(1)}&bboxSR=3857&imageSR=3857&size=${W},${H}&format=jpg&f=image`;
+  img.onerror = () => fig.remove();
+  a.append(img); fig.append(a);
+  const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('aria-hidden', 'true');
+  const px = ([x, y]) => [((x - x0) / span * W).toFixed(1), ((y1 - y) / (2 * hh) * H).toFixed(1)];
+  if (outline && pts.length) {
+    const pg = document.createElementNS(NS, 'polygon');
+    pg.setAttribute('points', pts.map((p) => px(p).join(',')).join(' '));
+    pg.setAttribute('fill', 'rgba(255,214,10,0.12)'); pg.setAttribute('stroke', '#ffd60a'); pg.setAttribute('stroke-width', '3');
+    svg.append(pg);
+  } else {
+    const [mx, my] = px([cx, cy]), ci = document.createElementNS(NS, 'circle');
+    ci.setAttribute('cx', mx); ci.setAttribute('cy', my); ci.setAttribute('r', outline ? 10 : 8);
+    ci.setAttribute('fill', 'none'); ci.setAttribute('stroke', '#ffd60a'); ci.setAttribute('stroke-width', '3');
+    svg.append(ci);
+  }
+  fig.append(svg, el('figcaption', null, outline ? (pts.length ? 'Lot lines (aerial)' : 'Aerial') : `Neighborhood (${Math.round(span * 3.281 / 5280 * 10) / 10} mi across)`));
+  return fig;
+}
+const mlyCache = {};
+async function mapillaryNear(r) {
+  const k = r.uid; if (k in mlyCache) return mlyCache[k];
+  const d = 0.0007, bb = [r.lon - d, r.lat - d, r.lon + d, r.lat + d].map((v) => v.toFixed(6)).join(',');
+  try {
+    const res = await fetch(`https://graph.mapillary.com/images?access_token=${encodeURIComponent(state.mly)}&fields=id,thumb_1024_url,captured_at,computed_geometry&bbox=${bb}&limit=25`);
+    const j = await res.json(), list = (j.data || []).filter((x) => x.thumb_1024_url);
+    const dist = (x) => { const c = (x.computed_geometry || {}).coordinates || [0, 0]; return (c[0] - r.lon) ** 2 + (c[1] - r.lat) ** 2; };
+    list.sort((a, b) => dist(a) - dist(b) || b.captured_at - a.captured_at);
+    return (mlyCache[k] = list[0] || null);
+  } catch (e) { return (mlyCache[k] = null); }
+}
+function photoBlock(r) {
+  if (!r.lat && !r.full_address) return null;
+  const ph = el('div', 'photos');
+  if (r.lat) ph.append(aerial(r, 0, true), aerial(r, 450, false));
+  if (state.key) {
+    const loc = encodeURIComponent(r.lat ? r.lat + ',' + r.lon : r.full_address), k = encodeURIComponent(state.key);
+    const fig = el('figure'), a = el('a'); a.href = r.streetview_url || r.map_url; a.target = '_blank'; a.rel = 'noopener';
+    const i1 = el('img'); i1.loading = 'lazy'; i1.alt = 'Street View of ' + (r.full_address || r.tax_id);
+    i1.src = `https://maps.googleapis.com/maps/api/streetview?size=640x400&location=${loc}&source=outdoor&radius=80&return_error_code=true&key=${k}`;
+    i1.onerror = () => fig.remove();
+    a.append(i1); fig.append(a, el('figcaption', null, 'Google Street View')); ph.append(fig);
+  }
+  if (state.mly && r.lat) {
+    const fig = el('figure'); ph.append(fig);
+    mapillaryNear(r).then((m) => {
+      if (!m) { fig.remove(); return; }
+      const a = el('a'); a.href = 'https://www.mapillary.com/app/?pKey=' + m.id; a.target = '_blank'; a.rel = 'noopener';
+      const i = el('img'); i.loading = 'lazy'; i.alt = 'Street-level photo near ' + (r.full_address || r.tax_id); i.src = m.thumb_1024_url;
+      a.append(i); fig.append(a, el('figcaption', null, 'Street photo, ' + new Date(m.captured_at).toLocaleDateString('en-US', {month: 'short', year: 'numeric'}) + ' (Mapillary)'));
+    });
+  }
+  if (!ph.children.length) return null;
+  const wrap = el('div'); wrap.append(ph);
+  wrap.append(el('div', 'note', 'Aerial imagery: Esri, Maxar, Earthstar Geographics. Tap a photo to open it full size.'));
+  return wrap;
+}
+
 function card(r) {
   const c = el('div', 'card'); c.id = 'p-' + r.uid;
   const t = state.track[r.uid] || {};
@@ -960,15 +1048,7 @@ function card(r) {
   c.append(ct);
   c.append(dealBlock(r));
 
-  if (state.key && (r.lat || r.full_address)) {
-    const loc = encodeURIComponent(r.lat ? r.lat + ',' + r.lon : r.full_address), k = encodeURIComponent(state.key);
-    const ph = el('div', 'photos');
-    const i1 = el('img'); i1.loading = 'lazy'; i1.alt = 'Street View of ' + (r.full_address || r.tax_id);
-    i1.src = `https://maps.googleapis.com/maps/api/streetview?size=480x300&location=${loc}&source=outdoor&key=${k}`;
-    const i2 = el('img'); i2.loading = 'lazy'; i2.alt = 'Satellite view of ' + (r.full_address || r.tax_id);
-    i2.src = `https://maps.googleapis.com/maps/api/staticmap?center=${loc}&zoom=19&size=480x300&maptype=satellite&markers=size:small|${loc}&key=${k}`;
-    ph.append(i1, i2); c.append(ph);
-  }
+  const pb = photoBlock(r); if (pb) c.append(pb);
   const ln = el('div', 'links');
   linkList(r).forEach(([h, l]) => { const a = el('a', null, l); a.href = h; a.target = '_blank'; a.rel = 'noopener'; ln.append(a); });
   c.append(ln);
@@ -1214,6 +1294,8 @@ $('more').onclick = () => { state.shown += state.ui.mode === 'table' ? 100 : 40;
 $('a-reset').onclick = () => { state.a = Object.assign({}, DEFAULT_A); store.set('assump', state.a); renderAssump(); rescore(); };
 $('w-reset').onclick = () => { state.w = Object.assign({}, DEFAULT_W); store.set('weights', state.w); renderWeights(); rescore(); };
 $('gkey').value = state.key;
+state.mly = store.get('mly', ''); $('mlykey').value = state.mly;
+$('mlykey').onchange = () => { state.mly = $('mlykey').value.trim(); store.set('mly', state.mly); renderList(); };
 $('gkey').onchange = () => { state.key = $('gkey').value.trim(); store.set('gkey', state.key); renderList(); };
 $('imp-file').onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
