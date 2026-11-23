@@ -147,6 +147,14 @@ main{max-width:1180px;margin:0 auto;padding:16px}
 .sec>div{padding-bottom:14px}
 .links{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .links a{font-size:13px;text-decoration:none;border:1px solid var(--line2);border-radius:999px;padding:5px 12px;color:var(--fg);font-weight:550;background:var(--bg)}
+.links.quick{margin:0 0 12px;align-items:center}.qlabel{font-size:12px;color:var(--muted);font-weight:600;margin-right:2px}
+.rc{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:10px 0}
+.rc h5{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.rc .big{font:600 20px/1.2 var(--display)}
+.rc table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin-top:8px;display:block;overflow-x:auto}
+.rc td,.rc th{padding:5px 6px;border-top:1px solid var(--line);white-space:nowrap;text-align:right}.rc th{color:var(--muted);font-weight:600;font-size:11px}.rc td:first-child,.rc th:first-child{text-align:left}
+.loanest{background:var(--bg);border:1px dashed var(--line2);border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.loanest summary{cursor:pointer;font-weight:650;font-size:13px;color:var(--accent)}
 .links a:hover{border-color:var(--accent);color:var(--accent)}
 .photos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 8px}
 .photos img{width:100%;border-radius:10px;background:var(--bg2);aspect-ratio:16/10;object-fit:cover;display:block}
@@ -699,7 +707,16 @@ function buildRows() {
     if (x.loan != null) r.loan_balance = x.loan;
   }));
   state.rows = tax.concat([...extra.values()]);
+  const rc = (state.rc && state.rc.parcels) || {};
+  state.rows.forEach((r) => { r.rc = (r.tax_id && rc[r.tax_id]) || null; });
 }
+async function loadRentcast() {
+  try {
+    const res = await fetch('data/rentcast.json?t=' + Date.now(), {cache: 'no-store'});
+    if (res.ok) { state.rc = await res.json(); if (state.data) rescore(); }
+  } catch (e) { /* not on GitHub Pages or no file yet */ }
+}
+const RC_WORKFLOW = 'https://github.com/PorterLarsen/pl-lf-7k2q/actions/workflows/rentcast.yml';
 
 /* ------------------------------------------------------------------ my plan */
 const DEFAULT_P = {plan: 'live', cash: 20000, downPct: 3.5, closePct: 3, rate: 6.75, taxIns: 350, mipPct: 0.55};
@@ -761,10 +778,11 @@ function defaultRepairs(r) {
 }
 function analyze(r) {
   const t = state.track[r.uid] || {}, a = state.a;
-  const value = num(t.val) ?? num(r.est_value) ?? num(r.mkt_value);
+  const rcv = r.rc && r.rc.value && num(r.rc.value.price);
+  const value = num(t.val) ?? num(r.est_value) ?? rcv ?? num(r.mkt_value);
   const loan = num(t.loan) ?? num(r.loan_balance);
   const repairs = num(t.rep) ?? defaultRepairs(r);
-  const d = {value, loan, loanKnown: loan != null, repairs, backTaxes: r.total_due || 0, valueSource: num(t.val) != null ? 'your estimate' : num(r.est_value) != null ? 'imported estimate' : 'county assessor'};
+  const d = {value, loan, loanKnown: loan != null, repairs, backTaxes: r.total_due || 0, valueSource: num(t.val) != null ? 'your estimate' : num(r.est_value) != null ? 'imported estimate' : rcv != null ? 'RentCast, from recent sales' : 'county assessor'};
   if (!value) return d;
   const debt = (loan || 0) + d.backTaxes;
   d.equity = value - debt; d.equityPct = Math.round(100 * d.equity / value);
@@ -943,6 +961,9 @@ function links(r) {
   } else r.map_url = r.streetview_url = r.satellite_url = '';
   r.zillow_url = r.full_address ? 'https://www.zillow.com/homes/' + enc(r.full_address) + '_rb/' : '';
   r.county_url = /^https?:\/\//.test(r.core_url || '') ? r.core_url : 'https://core.cachecounty.gov/';
+  const gq = (site) => r.full_address ? 'https://www.google.com/search?q=' + enc('"' + r.full_address.split(',')[0] + '" ' + (r.full_address.split(',')[1] || '').trim() + ' ' + site) : '';
+  r.redfin_url = gq('site:redfin.com'); r.realtor_url = gq('site:realtor.com'); r.homes_url = gq('site:homes.com');
+  r.web_url = r.full_address ? 'https://www.google.com/search?q=' + enc('"' + r.full_address.split(',')[0] + '" ' + (r.full_address.split(',')[1] || '').trim() + ' Utah') : '';
 }
 
 /* ------------------------------------------------------------------ filter & sort */
@@ -1010,7 +1031,8 @@ function renderKpis() {
   $('k-new').textContent = state.data ? (state.data.newIds ? fmtN(state.data.newIds.length) : '—') : '—';
 }
 function linkList(r) {
-  return [[r.streetview_url, 'Street View'], [r.satellite_url, 'Satellite'], [r.map_url, 'Map'], [r.zillow_url, 'Zillow'], [r.county_url, 'County record'],
+  return [[r.zillow_url, 'Zillow'], [r.redfin_url, 'Redfin'], [r.realtor_url, 'Realtor.com'], [r.homes_url, 'Homes.com'], [r.web_url, 'Web search'],
+    [r.streetview_url, 'Street View'], [r.satellite_url, 'Satellite'], [r.map_url, 'Map'], [r.county_url, 'County record'],
     ['https://www.utcourts.gov/en/court-records-publications/records/xchange.html', 'Court search']].filter(([h]) => h && /^https?:\/\//.test(h));
 }
 /* ------------------------------------------------------------------ photos */
@@ -1151,6 +1173,11 @@ function card(r) {
     }
   }
 
+  if (r.full_address) {
+    const ql = el('div', 'links quick'); ql.append(el('span', 'qlabel', 'Listing photos & history:'));
+    [[r.zillow_url, 'Zillow'], [r.redfin_url, 'Redfin'], [r.realtor_url, 'Realtor.com'], [r.homes_url, 'Homes.com']].forEach(([h, l]) => { const a = el('a', null, l); a.href = h; a.target = '_blank'; a.rel = 'noopener'; ql.append(a); });
+    body.append(ql);
+  }
   // deal analysis
   const dealHint = r.target_offer != null ? 'Offer ' + fmtUsd(r.target_offer) + (r.equity_pct != null ? ' · ' + Math.round(r.equity_pct) + '% equity' : '') : '';
   body.append(section('deal', 'Deal & offer', dealHint, dealBlock(r)));
@@ -1206,6 +1233,101 @@ function card(r) {
   c.append(body);
   return c;
 }
+/* loan estimator: today's balance from the recorded trust deed */
+const AVG_RATE = {1995: 7.93, 1996: 7.81, 1997: 7.60, 1998: 6.94, 1999: 7.44, 2000: 8.05, 2001: 6.97, 2002: 6.54, 2003: 5.83, 2004: 5.84, 2005: 5.87, 2006: 6.41, 2007: 6.34,
+  2008: 6.03, 2009: 5.04, 2010: 4.69, 2011: 4.45, 2012: 3.66, 2013: 3.98, 2014: 4.17, 2015: 3.85, 2016: 3.65, 2017: 3.99, 2018: 4.54, 2019: 3.94, 2020: 3.11,
+  2021: 2.96, 2022: 5.34, 2023: 6.81, 2024: 6.72, 2025: 6.6, 2026: 6.3};
+function loanBalance(amt, start, ratePct, years, at = new Date()) {
+  const [y, m] = start.split('-').map(Number), n = years * 12;
+  const k = Math.max(0, Math.min(n, (at.getFullYear() - y) * 12 + (at.getMonth() + 1 - m)));
+  const rr = ratePct / 1200;
+  const bal = rr ? amt * (Math.pow(1 + rr, n) - Math.pow(1 + rr, k)) / (Math.pow(1 + rr, n) - 1) : amt * (1 - k / n);
+  const pmt = rr ? amt * rr / (1 - Math.pow(1 + rr, -n)) : amt / n;
+  return {bal: Math.max(0, Math.round(bal)), pmt: Math.round(pmt), payoffYear: y + Math.floor((m - 1 + n) / 12), monthsPaid: k};
+}
+function loanEstimator(r, redraw) {
+  const t = state.track[r.uid] || {};
+  const det = el('details', 'loanest'); if (t.lo_amt) det.open = true;
+  det.append(el('summary', null, 'Estimate the loan balance from the recorded trust deed'));
+  det.append(el('div', 'dealnote', 'Look up the property\'s trust deed (County record link, or the Recorder\'s office). It shows the original loan amount and recording date. Several trust deeds? Enter the newest one that wasn\'t reconveyed (paid off). Add any second loan to the result.'));
+  const g = el('div', 'inputs'), vals = {};
+  const f = (label, key, type, ph) => {
+    const w = el('div'); w.append(el('label', null, label));
+    const i = el('input'); i.type = type; if (type === 'number') { i.inputMode = 'decimal'; i.step = 'any'; }
+    i.placeholder = ph; i.value = t[key] ?? ''; vals[key] = i;
+    i.oninput = calc; i.onchange = () => saveTrack(r.uid, {[key]: i.value.trim()});
+    w.append(i); g.append(w);
+  };
+  const out = el('div', 'eq'), use = el('button', 'btn', 'Use as loan balance'); use.type = 'button'; use.hidden = true;
+  function calc() {
+    const amt = num(vals.lo_amt.value), start = vals.lo_date.value, yrs = num(vals.lo_term.value) || 30;
+    const yr = start ? +start.slice(0, 4) : null;
+    vals.lo_rate.placeholder = yr && AVG_RATE[yr] ? AVG_RATE[yr] + ' (avg ' + yr + ')' : 'e.g. 4.5';
+    const rate = num(vals.lo_rate.value) ?? (yr && AVG_RATE[yr]);
+    out.replaceChildren(); use.hidden = true;
+    if (!amt || !start || !rate) return;
+    const lb = loanBalance(amt, start, rate, yrs);
+    const kv = (k, v) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); out.append(x); };
+    kv('Est. balance today', fmtUsd(lb.bal)); kv('Payment', fmtUsd(lb.pmt) + '/mo principal + interest'); kv('Paid off', String(lb.payoffYear));
+    use.hidden = false; use.onclick = () => { saveTrack(r.uid, {loan: String(lb.bal)}); rescoreSoon(); redraw(); };
+  }
+  f('Original loan ($)', 'lo_amt', 'number', 'from trust deed');
+  f('Recorded (month)', 'lo_date', 'month', 'YYYY-MM');
+  f('Rate (%)', 'lo_rate', 'number', 'e.g. 4.5');
+  f('Term (years)', 'lo_term', 'number', '30');
+  det.append(g, out, use);
+  det.append(el('div', 'dealnote', 'Assumes a fixed-rate loan with regular payments. If no rate is entered it uses that year\'s average 30-year rate (approximate). Refinances, extra payments and missed payments change the real balance.'));
+  calc();
+  return det;
+}
+/* RentCast market check */
+function rcPanel(r, d) {
+  const box = el('div', 'rc');
+  const rc = r.rc;
+  if (!rc) {
+    box.append(el('h5', null, 'Market check'));
+    box.append(el('div', 'dealnote', r.full_address ? 'No RentCast estimate yet. The monthly update covers the top leads automatically. To check this one now: copy the parcel ID, open the RentCast job on GitHub, tap "Run workflow", and paste it in.' : 'Needs a street address for a RentCast estimate.'));
+    if (r.full_address && r.tax_id) {
+      const a2 = el('div', 'acts'); a2.style.display = 'flex'; a2.style.gap = '6px'; a2.style.marginTop = '6px';
+      const b = el('button', 'btn', 'Copy parcel ID'); b.type = 'button'; b.onclick = () => copyText(r.tax_id, b);
+      const a = el('a', 'btn', 'Open RentCast job'); a.href = RC_WORKFLOW; a.target = '_blank'; a.rel = 'noopener'; a.style.textDecoration = 'none';
+      a2.append(b, a); box.append(a2);
+    }
+    return box;
+  }
+  box.append(el('h5', null, 'Market check · RentCast · ' + (rc.fetched || '').slice(0, 10)));
+  const v = rc.value, rt = rc.rent, sp = (v && v.subject) || (rt && rt.subject) || {};
+  const line = el('div', 'eq');
+  const kv = (k, val) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, val)); line.append(x); };
+  if (v && v.price) kv('Value (repaired)', fmtUsd(v.price) + (v.low ? ` (${fmtUsd(v.low)}–${fmtUsd(v.high)})` : ''));
+  if (rt && rt.rent) kv('Rent', fmtUsd(rt.rent) + '/mo' + (rt.low ? ` (${fmtUsd(rt.low)}–${fmtUsd(rt.high)})` : ''));
+  if (r.mkt_value && v && v.price) kv('vs. assessor', Math.round(100 * v.price / r.mkt_value) + '%');
+  box.append(line);
+  const facts = [sp.bedrooms != null && sp.bedrooms + ' bd', sp.bathrooms != null && sp.bathrooms + ' ba', sp.squareFootage && fmtN(sp.squareFootage) + ' sq ft', sp.yearBuilt && 'built ' + sp.yearBuilt,
+    sp.lastSalePrice && 'last sold ' + fmtUsd(sp.lastSalePrice) + (sp.lastSaleDate ? ' (' + sp.lastSaleDate.slice(0, 7) + ')' : '')].filter(Boolean);
+  if (facts.length) box.append(el('div', 'dealnote', facts.join(' · ')));
+  if (rt && rt.rent && d.offers) {
+    const li = liveIn(d.offers.target.price, d.repairs);
+    const cf = Math.round(rt.rent * 0.85 - li.monthly);   // 15% for vacancy, repairs and management
+    box.append(el('div', cf >= 0 ? 'dealnote' : 'dealwarn', `As a rental at the target price: rent ${fmtUsd(rt.rent)} − 15% for vacancy and upkeep − payment ${fmtUsd(li.monthly)} ≈ ${fmtUsd(cf)}/mo cash flow (FHA payment; an investor loan with more down changes this).`));
+  }
+  const comps = (v && v.comps) || [];
+  if (comps.length) {
+    const tb = el('table'), hr = el('tr');
+    ['Comparable', 'Price', 'Sq ft', 'Bd/Ba', 'Built', 'Mi', 'Status'].forEach((h) => hr.append(el('th', null, h))); tb.append(hr);
+    comps.slice(0, 8).forEach((c) => {
+      const tr = el('tr'), a = el('a', null, (c.address || '').split(',')[0]);
+      a.href = 'https://www.zillow.com/homes/' + encodeURIComponent(c.address || '') + '_rb/'; a.target = '_blank'; a.rel = 'noopener';
+      const td0 = el('td'); td0.append(a); tr.append(td0);
+      [fmtUsd(c.price), c.sqft ? fmtN(c.sqft) : '—', (c.bd ?? '—') + '/' + (c.ba ?? '—'), c.built || '—', c.dist != null ? (+c.dist).toFixed(1) : '—',
+        (c.status || '') + (c.date ? ' ' + c.date.slice(0, 7) : '')].forEach((x) => tr.append(el('td', null, String(x))));
+      tb.append(tr);
+    });
+    box.append(tb);
+    box.append(el('div', 'dealnote', 'Comparables are recent listings near this property. Their prices are list prices, not sold prices (Utah keeps sale prices private), so a lender\'s appraisal can come in lower.'));
+  }
+  return box;
+}
 function dealBlock(r) {
   const box = el('div', 'deal');
   const draw = () => {
@@ -1223,6 +1345,7 @@ function dealBlock(r) {
     field('Loan balance ($)', 'loan', d.loan, d.loanKnown ? 'using' : 'unknown —');
     field('Repairs ($)', 'rep', d.repairs, 'est.');
     box.append(inp);
+    box.append(loanEstimator(r, draw));
     if (!d.value) { box.append(el('div', 'dealnote', 'No value on file yet. Enter what similar homes sell for (check the Zillow link), or tap Refresh to load the assessor\'s value.')); return; }
     const eq = el('div', 'eq');
     const kv = (k, v) => { const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); eq.append(x); };
@@ -1230,6 +1353,7 @@ function dealBlock(r) {
     kv('Owed', d.loanKnown ? fmtUsd((d.loan || 0) + d.backTaxes) : fmtUsd(d.backTaxes) + ' back taxes + unknown loan');
     kv('Equity', (d.loanKnown ? '' : 'up to ') + fmtUsd(d.equity) + ' (' + d.equityPct + '%)');
     box.append(eq);
+    box.append(rcPanel(r, d));
     const t = el('table', 'offers');
     const hr = el('tr'); ['Offer', 'Price', 'Your profit', 'Owner gets in cash', 'vs. listing'].forEach((h) => hr.append(el('th', null, h)));
     t.append(hr);
@@ -1481,13 +1605,14 @@ $('refresh').onclick = async () => {
     fresh.forEach((id) => { state.seen[id] = today; });
     store.set('seen', state.seen);
     state.data = data; store.set('data', data);
-    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList();
+    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList(); loadRentcast();
   } catch (e) {
     $('error').textContent = 'Refresh failed: ' + e.message + '. Your last saved list is still shown. Try again in a minute.'; $('error').hidden = false;
   } finally { btn.disabled = false; setProgress(0); updateStatus(); }
 };
 
 if (state.data) { scoreAll(); fillCities(); }
+loadRentcast();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;

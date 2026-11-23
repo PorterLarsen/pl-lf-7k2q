@@ -1,0 +1,42 @@
+name: RentCast estimates
+
+on:
+  schedule:
+    - cron: "23 15 2 * *"   # 2nd of each month, 8:23 am Utah time
+  workflow_dispatch:
+    inputs:
+      parcels:
+        description: "Parcel IDs to look up now (comma-separated, e.g. 08-070-0021). Leave blank for the top leads."
+        required: false
+        default: ""
+      max_properties:
+        description: "Most properties to look up (each uses 2 of your 50 free monthly calls)"
+        required: false
+        default: "20"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rentcast
+  cancel-in-progress: false
+
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look up value and rent estimates
+        env:
+          RENTCAST_API_KEY: ${{ secrets.RENTCAST_API_KEY }}
+          PARCELS: ${{ github.event.inputs.parcels }}
+          MAX_PROPERTIES: ${{ github.event.inputs.max_properties }}
+          MONTHLY_CAP: "48"
+        run: python3 scripts/rentcast.py
+      - name: Save results
+        run: |
+          git config user.name "rentcast-bot"
+          git config user.email "rentcast-bot@users.noreply.github.com"
+          git add data/rentcast.json
+          git diff --cached --quiet || git commit -m "RentCast estimates update"
+          git push
