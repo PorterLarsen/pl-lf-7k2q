@@ -228,6 +228,34 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
 .guide .muted{color:var(--muted);font-size:13px}
 @media (max-width:600px){.guide{padding:4px 16px 18px}}
 .leaflet-container{font-family:var(--sans)}
+#printarea{display:none}
+@media print{
+  @page{size:letter;margin:0}
+  body{background:#fff;padding:0}
+  body>*:not(#printarea){display:none!important}
+  #printarea{display:block}
+}
+.letter{font:12pt/1.55 Georgia,"Times New Roman",serif;color:#111;padding:.9in 1in;page-break-after:always;break-after:page;min-height:11in;box-sizing:border-box}
+.letter .ret{font-size:10.5pt;line-height:1.35;margin-bottom:.45in;white-space:pre-line}
+.letter .to{white-space:pre-line;margin:.25in 0 .35in}
+.letter .re{font-weight:bold;margin-bottom:.2in}
+.letter p{margin:0 0 .16in}
+.pipe .group{margin-bottom:18px}
+.pipe h3{font:600 17px/1.2 var(--display);margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.pipe h3 .n{font:700 12px var(--sans);background:var(--accent2);color:var(--accent);border-radius:999px;padding:2px 9px}
+.pipe h3.due .n{background:var(--gold);color:#2a1d02}
+.prow{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.prow .a{font-weight:650;cursor:pointer;color:var(--fg);background:none;border:0;padding:0;text-align:left;font-size:15px}
+.prow .a:hover{color:var(--accent)}
+.prow .m{font-size:12.5px;color:var(--muted)}
+.prow .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.prow .acts .btn{font-size:12.5px;padding:5px 10px}
+.prow .od{color:var(--bad);font-weight:650}
+.navbadge{background:var(--gold);color:#2a1d02;border-radius:999px;font-size:10px;font-weight:800;padding:0 6px;margin-left:2px;line-height:16px}
+.log{font-size:12.5px;color:var(--muted);margin:6px 0 0;width:100%}
+.log div{padding:2px 0}
+.track .fu{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);font-weight:600}
+.track input[type=date]{height:36px;border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:0 8px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -238,7 +266,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div style="min-width:0"><h1>Cache <em>Lead</em> Finder</h1><div class="status" id="status">No data yet</div></div></div>
     <button class="btn primary" id="refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg><span>Refresh</span></button>
   </div>
-  <nav><button data-view="list" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Leads</span></button><button data-view="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Map</span></button><button data-view="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v16H5.5A1.5 1.5 0 0 0 4 20.5zM4 20.5A1.5 1.5 0 0 0 5.5 22H20"/></svg><span>Guide</span></button><button data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Settings</span></button></nav>
+  <nav><button data-view="list" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Leads</span></button><button data-view="pipe"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg><span>Pipeline<b class="navbadge" id="duebadge" hidden></b></span></button><button data-view="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span>Map</span></button><button data-view="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v16H5.5A1.5 1.5 0 0 0 4 20.5zM4 20.5A1.5 1.5 0 0 0 5.5 22H20"/></svg><span>Guide</span></button><button data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Settings</span></button></nav>
   <div class="progress"><div id="bar"></div></div>
 </header>
 <main>
@@ -264,6 +292,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <button class="btn" id="dir" type="button" aria-label="Sort direction">↓ High to low</button>
       <button class="btn" id="viewtoggle" type="button">Table view</button>
       <button class="btn" id="ftoggle" type="button">Filters <span id="fcount"></span></button>
+      <button class="btn" id="batchletters" type="button">Print letters</button>
     </div>
     <div class="filters">
       <select id="f-cat" aria-label="Type"><option value="">All types</option><option>Home</option><option>Multi-family</option><option>Land</option><option>Commercial / mixed</option><option>Other</option></select>
@@ -305,6 +334,10 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     <div class="empty" id="empty">Tap <b>Refresh</b> to pull every Cache County parcel with unpaid back taxes. The first load takes about a minute.</div>
   </section>
 
+  <section id="v-pipe" class="pipe" hidden>
+    <div class="kpis" id="pipekpis"></div>
+    <div id="pipelist"></div>
+  </section>
   <section id="v-map" hidden><div id="map"></div><p class="note">Dot color shows the score: green 75+, amber 60–74, gray below 60. Tap a dot for details.</p></section>
 
 
@@ -439,6 +472,14 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div class="seg" id="themeseg"><button data-t="auto" type="button">Match device</button><button data-t="light" type="button">Light</button><button data-t="dark" type="button">Dark</button></div>
     </div>
     <div class="panel">
+      <h2>Letters to owners</h2>
+      <p class="note">Your details go on every letter. Edit the wording below; words in {braces} are filled in for each property.</p>
+      <div class="inputs" id="mefields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:8px 0"></div>
+      <label class="chk" style="margin:6px 0"><input type="checkbox" id="me-offer"> Include a price range in the letter (opening to target offer)</label>
+      <textarea id="me-tpl" rows="14" style="width:100%;padding:10px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);font:14px/1.5 var(--sans)"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" id="me-reset" type="button">Reset wording</button><span class="note">Placeholders: {greeting} {property} {my_name} {phone} {email} {offer_line} {city}</span></div>
+    </div>
+    <div class="panel">
       <h2>My plan</h2>
       <p class="note">Sets how leads are scored and which numbers each card shows. You can still fine-tune the sliders below.</p>
       <div class="wt" style="grid-template-columns:1fr 160px"><span>What I'm buying for</span>
@@ -477,12 +518,12 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     </div>
     <div class="panel">
       <h2>Your data</h2>
-      <p class="note">Leads, statuses and notes are saved on this device only.</p>
+      <p class="note">Statuses, notes, follow-ups and settings are saved in this browser only. To use another phone or computer, tap Download backup here, then Restore backup on the other device (AirDrop or email the file to yourself). API keys aren't included, so enter them on each device.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="export">Download spreadsheet (CSV)</button>
         <button class="btn" id="export-mail">Download mailing list (CSV)</button>
-        <button class="btn" id="export-notes">Back up my notes</button>
-        <label class="btn">Restore notes<input type="file" id="import-notes" accept=".json" hidden></label>
+        <button class="btn" id="export-notes">Download backup</button>
+        <label class="btn">Restore backup<input type="file" id="import-notes" accept=".json" hidden></label>
         <button class="btn" id="clear">Clear saved leads</button>
       </div>
     </div>
@@ -492,6 +533,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     </div>
   </section>
 </main>
+<div id="printarea"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
@@ -1237,6 +1279,7 @@ function card(r) {
     const a = el('a', null, 'Utah business search'); a.href = BIZ_SEARCH; a.target = '_blank'; a.rel = 'noopener'; acts.append(a);
   }
   if (r.owner_type === 'Estate' || r.owner_type === 'Individual') { const a = el('a', null, 'Court records'); a.href = XCHANGE; a.target = '_blank'; a.rel = 'noopener'; acts.append(a); }
+  if (r.owner_address) { const pl = el('button', null, 'Print letter'); pl.type = 'button'; pl.onclick = () => printLetters([r]); acts.prepend(pl); }
   ct.append(acts);
   ct.append(el('div', 'next', nextStep(r)));
   const cf = el('div', 'cf');
@@ -1271,7 +1314,20 @@ function card(r) {
   sel.onchange = () => { sel.dataset.s = sel.value; saveTrack(r.uid, {status: sel.value}); };
   const note = el('textarea'); note.placeholder = 'Notes'; note.value = t.note || ''; note.setAttribute('aria-label', 'Notes');
   note.onchange = () => saveTrack(r.uid, {note: note.value});
-  tr.append(sel, note); body.append(tr);
+  const fu = el('label', 'fu', 'Follow up'); const dt = el('input'); dt.type = 'date'; dt.value = t.next || ''; dt.setAttribute('aria-label', 'Follow-up date');
+  dt.onchange = () => { saveTrack(r.uid, {next: dt.value}); updateDue(); }; fu.append(dt);
+  const lg = el('select'); lg.setAttribute('aria-label', 'Log a contact');
+  ['＋ Log contact', 'Letter sent', 'Called, no answer', 'Left voicemail', 'Talked', 'Texted', 'Emailed', 'Visited', 'Made offer'].forEach((x, i) => lg.append(new Option(x, i ? x : '')));
+  lg.onchange = () => {
+    if (!lg.value) return;
+    logContact(r, lg.value, lg.value === 'Talked' || lg.value === 'Made offer' ? 3 : 7);
+    if (lg.value === 'Made offer') saveTrack(r.uid, {status: 'Offer made'});
+    updateDue(); const nc = card(state.rows.find((x) => x.uid === r.uid) || r); c.replaceWith(nc);
+  };
+  tr.append(sel, lg, fu, note);
+  const lgList = (t.log || []).slice(-4).reverse();
+  if (lgList.length) { const lb = el('div', 'log'); lgList.forEach((x) => lb.append(el('div', null, fmtDay(x.d) + ' · ' + x.what))); tr.append(lb); }
+  body.append(tr);
   c.append(body);
   return c;
 }
@@ -1544,6 +1600,127 @@ function openLead(id, toCards) {
   const c = $('p-' + id); if (c) { c.scrollIntoView({behavior: 'smooth', block: 'center'}); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2000); }
 }
 
+/* ------------------------------------------------------------------ letters */
+const DEFAULT_TPL = `{greeting}
+
+My name is {my_name}. I live in Utah, and I'm looking to buy a home in Cache Valley. I'm writing to ask whether you'd consider selling your property at {property}.
+
+I'd buy it directly from you, as-is. You wouldn't need to make repairs, clean it out, pay agent commissions, or hold showings, and I can work around your timeline. If the property taxes have become a burden, they can be paid off from the sale at closing.
+
+{offer_line}
+
+If you're open to it, or just want to talk it through, call or text me at {phone}{email_part}. There's no obligation, and I'm happy to answer any questions.
+
+Thank you for your time,`;
+state.me = Object.assign({name: '', phone: '', email: '', addr: '', offer: false, tpl: DEFAULT_TPL}, store.get('me', {}));
+const ME_FIELDS = {name: 'Your name', phone: 'Your phone', email: 'Your email (optional)', addr: 'Your return address (street, city, state zip)'};
+function renderMe() {
+  const box = $('mefields'); box.replaceChildren();
+  Object.entries(ME_FIELDS).forEach(([k, label]) => {
+    const w = el('div'); w.append(el('label', 'note', label));
+    const i = el('input'); i.type = k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'; i.value = state.me[k] || ''; i.style.width = '100%';
+    i.onchange = () => { state.me[k] = i.value.trim(); store.set('me', state.me); };
+    w.append(i); box.append(w);
+  });
+  $('me-offer').checked = !!state.me.offer;
+  $('me-tpl').value = state.me.tpl || DEFAULT_TPL;
+}
+function greeting(r) {
+  const n = String(r.owner_name || '').trim();
+  if (r.owner_type === 'Individual' && n) {
+    const firsts = n.split('&').map((part) => title(part.trim().split(/\s+/)[0] || '')).filter(Boolean);
+    if (firsts.length) return 'Dear ' + firsts.join(' and ') + ',';
+  }
+  if (r.owner_type === 'Estate') return 'To the family or representative of the owner,';
+  return 'Hello,';
+}
+function letterHtml(r) {
+  const me = state.me, d = analyze(r);
+  const offerLine = me.offer && d.offers ? `Based on what I can see from public records, I'd expect to offer somewhere around ${fmtUsd(d.offers.open.price)} to ${fmtUsd(d.offers.target.price)}, depending on the condition inside. I'm glad to walk through how I arrived at that.` : '';
+  const fill = (t) => t.replace(/\{greeting\}/g, greeting(r)).replace(/\{property\}/g, r.full_address || ('parcel ' + r.tax_id)).replace(/\{my_name\}/g, me.name || '[your name]')
+    .replace(/\{phone\}/g, me.phone || '[your phone]').replace(/\{email_part\}/g, me.email ? ', or email ' + me.email : '').replace(/\{email\}/g, me.email || '')
+    .replace(/\{offer_line\}/g, offerLine).replace(/\{city\}/g, title(r.city || ''));
+  const L = el('div', 'letter');
+  if (me.name || me.addr) L.append(el('div', 'ret', [me.name, ...(me.addr || '').split(/,\s*(?=[^,]*,)/)].filter(Boolean).join('\n')));
+  L.append(el('div', null, new Date().toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'})));
+  const ml = mailingLabel(r).split('\n'); ml[0] = title(ml[0]).replace(/\b(Llc|Lp|Inc|Ii|Iii)\b/g, (m) => m.toUpperCase());
+  L.append(el('div', 'to', ml.join('\n')));
+  L.append(el('div', 're', 'Re: ' + (r.full_address || 'Parcel ' + r.tax_id)));
+  fill(me.tpl || DEFAULT_TPL).split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean).forEach((para) => L.append(el('p', null, para)));
+  L.append(el('p', null, me.name || '[your name]'));
+  return L;
+}
+function printLetters(rows) {
+  rows = rows.filter((r) => r.owner_address);
+  if (!rows.length) { alert('None of these leads has a mailing address on file.'); return false; }
+  if (!state.me.name || !state.me.phone) { if (!confirm('Your name and phone aren\'t filled in yet (Settings → Letters to owners). Print anyway?')) return false; }
+  $('printarea').replaceChildren(...rows.map(letterHtml));
+  window.print();
+  setTimeout(() => {
+    if (confirm(`Mark ${rows.length === 1 ? 'this lead' : 'these ' + rows.length + ' leads'} as "Letter sent" and set a follow-up in 14 days?`)) {
+      rows.forEach((r) => logContact(r, 'Letter sent', 14)); renderList(); updateDue();
+    }
+    $('printarea').replaceChildren();
+  }, 400);
+  return true;
+}
+
+/* ------------------------------------------------------------------ follow-up */
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const fmtDay = (iso) => iso ? new Date(iso + 'T12:00').toLocaleDateString('en-US', {month: 'short', day: 'numeric'}) : '';
+function logContact(r, what, days) {
+  const t = state.track[r.uid] || {}, log = (t.log || []).concat([{d: today(), what}]);
+  const patch = {log};
+  if (!t.status || t.status === 'New' || t.status === 'Researching') patch.status = 'Contacted';
+  if (days && (!t.next || t.next <= today())) patch.next = addDays(days);
+  saveTrack(r.uid, patch);
+}
+function updateDue() {
+  const n = Object.values(state.track).filter((t) => t.next && t.next <= today() && t.status !== 'Pass').length;
+  const b = $('duebadge'); b.textContent = n; b.hidden = !n;
+}
+function renderPipe() {
+  updateDue();
+  const byId = new Map(state.rows.map((r) => [r.uid, r])), td = today();
+  const items = Object.entries(state.track).map(([id, t]) => ({r: byId.get(id), t})).filter((x) => x.r && x.t.status && x.t.status !== 'New' && x.t.status !== 'Pass');
+  const due = items.filter((x) => x.t.next && x.t.next <= td).sort((a, b) => a.t.next.localeCompare(b.t.next));
+  const up = items.filter((x) => x.t.next && x.t.next > td).sort((a, b) => a.t.next.localeCompare(b.t.next));
+  const none = items.filter((x) => !x.t.next);
+  const cnt = (s) => items.filter((x) => x.t.status === s).length;
+  const k = $('pipekpis'); k.replaceChildren();
+  [[due.length, 'follow-ups due'], [cnt('Researching'), 'researching'], [cnt('Contacted'), 'contacted'], [cnt('Offer made'), 'offers out']].forEach(([n, l]) => { const d = el('div', 'kpi'); d.append(el('b', null, String(n)), el('span', null, l)); k.append(d); });
+  const box = $('pipelist'); box.replaceChildren();
+  if (!items.length) { box.append(el('div', 'empty', 'Nothing in your pipeline yet. Set a lead\'s status to Researching or Contacted, log a contact, or print letters from the Leads tab, and it shows up here with its follow-up date.')); return; }
+  const group = (title2, list, cls) => {
+    if (!list.length) return;
+    const g = el('div', 'group'), h = el('h3', cls); h.append(document.createTextNode(title2), el('span', 'n', String(list.length))); g.append(h);
+    list.forEach(({r, t}) => {
+      const row = el('div', 'prow'), left = el('div');
+      const a = el('button', 'a', r.full_address || 'Parcel ' + r.tax_id); a.type = 'button'; a.onclick = () => openLeadAnywhere(r);
+      const last = (t.log || []).slice(-1)[0];
+      const meta = el('div', 'm');
+      meta.append(document.createTextNode(t.status + ' · ' + (r.owner_name ? title(r.owner_name) : 'owner unknown') + (last ? ' · last: ' + last.what + ' ' + fmtDay(last.d) : '')));
+      if (t.next) { meta.append(document.createTextNode(' · ')); meta.append(el('span', t.next < td ? 'od' : null, (t.next < td ? 'overdue since ' : t.next === td ? 'due today' : 'follow up ') + (t.next === td ? '' : fmtDay(t.next)))); }
+      if (t.note) meta.append(el('div', null, '“' + t.note.slice(0, 120) + (t.note.length > 120 ? '…' : '') + '”'));
+      left.append(a, meta);
+      const acts = el('div', 'acts');
+      const done = el('button', 'btn', 'Contacted ✓'); done.type = 'button'; done.title = 'Log a contact today and follow up in 7 days';
+      done.onclick = () => { logContact(r, 'Followed up', 0); saveTrack(r.uid, {next: addDays(7)}); renderPipe(); };
+      const snooze = el('button', 'btn', '+1 week'); snooze.type = 'button'; snooze.onclick = () => { saveTrack(r.uid, {next: addDays(7)}); renderPipe(); };
+      acts.append(done, snooze);
+      if (r.phone) { const c = el('a', 'btn', 'Call'); c.href = 'tel:' + r.phone.replace(/[^\d+]/g, ''); c.style.textDecoration = 'none'; acts.append(c); }
+      row.append(left, acts); g.append(row);
+    });
+    box.append(g);
+  };
+  group('Due now', due, 'due'); group('Coming up', up); group('No follow-up date', none);
+}
+function openLeadAnywhere(r) {
+  if (!filtered().some((x) => x.uid === r.uid)) { $('f-clear').onclick(); $('q').value = r.tax_id || r.full_address || ''; saveUi(); }
+  openLead(r.uid, true);
+}
+
 /* ------------------------------------------------------------------ settings */
 function renderWeights() {
   const box = $('weights'); box.replaceChildren();
@@ -1587,7 +1764,8 @@ function download(name, text, type) {
 function show(v) {
   state.view = v;
   document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.view === v));
-  ['list', 'map', 'guide', 'settings'].forEach((k) => { $('v-' + k).hidden = k !== v; });
+  ['list', 'pipe', 'map', 'guide', 'settings'].forEach((k) => { $('v-' + k).hidden = k !== v; });
+  if (v === 'pipe') renderPipe();
   if (v === 'map') renderMap();
   if (v === 'settings') renderImports();
 }
@@ -1627,14 +1805,18 @@ $('export-mail').onclick = () => {
   }));
   download('cache-leads-mailing-list.csv', lines.join('\n'), 'text/csv');
 };
-$('export-notes').onclick = () => download('cache-lead-notes.json', JSON.stringify({track: state.track, seen: state.seen, weights: state.w, imports: state.imports}), 'application/json');
+$('export-notes').onclick = () => download('cache-lead-backup-' + today() + '.json', JSON.stringify({track: state.track, seen: state.seen, weights: state.w, imports: state.imports, plan: state.p, assumptions: state.a, me: state.me}), 'application/json');
 $('import-notes').onchange = async (e) => {
   const f = e.target.files[0]; if (!f) return;
   try {
     const j = JSON.parse(await f.text());
     Object.assign(state.track, j.track || {}); Object.assign(state.seen, j.seen || {});
     if (Array.isArray(j.imports)) { const have = new Set(state.imports.map((l) => l.name)); state.imports = state.imports.concat(j.imports.filter((l) => !have.has(l.name))); }
-    store.set('track', state.track); store.set('seen', state.seen); store.set('imports', state.imports); rescore(); fillCities(); alert('Notes restored.');
+    if (j.weights) { state.w = Object.assign({}, DEFAULT_W, j.weights); store.set('weights', state.w); }
+    if (j.plan) { state.p = Object.assign({}, DEFAULT_P, j.plan); store.set('plan', state.p); }
+    if (j.assumptions) { state.a = Object.assign({}, DEFAULT_A, j.assumptions); store.set('assump', state.a); }
+    if (j.me) { state.me = Object.assign({}, state.me, j.me); store.set('me', state.me); renderMe(); }
+    store.set('track', state.track); store.set('seen', state.seen); store.set('imports', state.imports); renderPlan(); renderWeights(); renderAssump(); updateDue(); rescore(); fillCities(); alert('Backup restored.');
   } catch (err) { alert('That file could not be read.'); }
 };
 $('clear').onclick = () => { if (confirm('Clear the saved lead list? Your statuses, notes and imported lists are kept.')) { state.data = null; store.set('data', null); state.rows = []; renderList(); updateStatus(); } };
@@ -1674,6 +1856,15 @@ document.querySelectorAll('#themeseg button').forEach((b) => b.onclick = () => a
 darkMQ?.addEventListener?.('change', () => { if (store.get('theme', 'auto') === 'auto') applyTheme('auto'); });
 applyTheme(store.get('theme', 'auto'));
 $('ftoggle').onclick = () => $('filterbar').classList.toggle('collapsed');
+$('batchletters').onclick = () => {
+  const rows = filtered().filter((r) => r.owner_address && (state.track[r.uid] || {}).status !== 'Pass').slice(0, 50);
+  if (!rows.length) { alert('No leads with a mailing address match your current filters.'); return; }
+  if (confirm(`Print letters for the top ${rows.length} leads in your current list (your filters and sort, skipping passed leads, max 50)? Tip: filter first, e.g. Score 70+.`)) printLetters(rows);
+};
+$('me-offer').onchange = () => { state.me.offer = $('me-offer').checked; store.set('me', state.me); };
+$('me-tpl').onchange = () => { state.me.tpl = $('me-tpl').value; store.set('me', state.me); };
+$('me-reset').onclick = () => { state.me.tpl = DEFAULT_TPL; store.set('me', state.me); $('me-tpl').value = DEFAULT_TPL; };
+renderMe(); updateDue();
 restoreUi(); renderPlan(); renderWeights(); renderAssump(); renderList(); updateStatus();
 </script>
 </body>
