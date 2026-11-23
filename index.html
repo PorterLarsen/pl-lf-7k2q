@@ -1291,6 +1291,12 @@ function loanEstimator(r, redraw) {
   const t = state.track[r.uid] || {};
   const det = el('details', 'loanest'); if (t.lo_amt) det.open = true;
   det.append(el('summary', null, 'Estimate the loan balance from the recorded trust deed'));
+  const look = el('div', 'acts'); look.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:8px 0';
+  const co = el('a', 'btn', 'Open in county records (CORE)'); co.href = r.county_url || 'https://core.cachecounty.gov/'; co.target = '_blank'; co.rel = 'noopener'; co.style.textDecoration = 'none';
+  look.append(co);
+  if (r.tax_id) { const cp = el('button', 'btn', 'Copy parcel ID ' + r.tax_id); cp.type = 'button'; cp.onclick = () => copyText(r.tax_id, cp); look.append(cp); }
+  det.append(look);
+  det.append(el('div', 'dealnote', 'In CORE, search the parcel ID and open its abstract (the list of recorded documents; needs a CORE license, $10 for a day). Look for "Trust Deed" entries. One followed later by a "Reconveyance" was paid off. Open the newest one still standing to read the loan amount and date. Or call the Recorder, (435) 755-1530, and ask whether you can view records free on their public computers.'));
   det.append(el('div', 'dealnote', 'Look up the property\'s trust deed (County record link, or the Recorder\'s office). It shows the original loan amount and recording date. Several trust deeds? Enter the newest one that wasn\'t reconveyed (paid off). Add any second loan to the result.'));
   const g = el('div', 'inputs'), vals = {};
   const f = (label, key, type, ph) => {
