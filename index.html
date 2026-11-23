@@ -563,6 +563,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" id="export">Download spreadsheet (CSV)</button>
         <button class="btn" id="export-mail">Download mailing list (CSV)</button>
+        <button class="btn" id="export-pids">Parcel list for the county (CSV)</button>
         <button class="btn" id="export-notes">Download backup</button>
         <label class="btn">Restore backup<input type="file" id="import-notes" accept=".json" hidden></label>
         <button class="btn" id="clear">Clear saved leads</button>
@@ -2040,6 +2041,12 @@ $('export-mail').onclick = () => {
     return [r.owner_name || 'Current Owner', r.owner_type, m.street, title(m.city), m.state, m.zip, title(street), title(r.city), 'UT', r.tax_id, r.score, r.total_due, r.phone, r.email].map(esc).join(',');
   }));
   download('cache-leads-mailing-list.csv', lines.join('\n'), 'text/csv');
+};
+$('export-pids').onclick = () => {
+  if (!state.data) return;
+  const esc = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const rows = state.rows.filter((r) => r.tax_id).sort((a, b) => a.tax_id.localeCompare(b.tax_id));
+  download('cache-parcel-list-' + today() + '.csv', ['Parcel ID,Property Address,City,Owner Name'].concat(rows.map((r) => [r.tax_id, (r.full_address || '').split(',')[0], title(r.city), r.owner_name].map(esc).join(','))).join('\n'), 'text/csv');
 };
 $('export-notes').onclick = () => download('cache-lead-backup-' + today() + '.json', JSON.stringify({track: state.track, seen: state.seen, weights: state.w, imports: state.imports, plan: state.p, assumptions: state.a, me: state.me}), 'application/json');
 $('import-notes').onchange = async (e) => {
