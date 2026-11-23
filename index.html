@@ -471,6 +471,28 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <h2>Appearance</h2>
       <div class="seg" id="themeseg"><button data-t="auto" type="button">Match device</button><button data-t="light" type="button">Light</button><button data-t="dark" type="button">Dark</button></div>
     </div>
+    <div class="panel" id="syncpanel">
+      <h2>Sync between devices</h2>
+      <p class="note">Keeps your statuses, notes, follow-ups, letters and settings the same on your phone and computer. Everything is encrypted with a passphrase you choose before it leaves the device, then stored in a private file (a "secret gist") in your own GitHub account. Without the passphrase it's unreadable, even to GitHub.</p>
+      <details class="morefilters"><summary>One-time setup: create a GitHub token</summary>
+        <ol class="note" style="padding-left:18px;margin:6px 0">
+          <li>On GitHub, go to <b>Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token</b> (or open github.com/settings/personal-access-tokens/new).</li>
+          <li>Name it <i>Lead Finder sync</i> and set an expiration (1 year is fine).</li>
+          <li>Under <b>Permissions → Account permissions</b>, set <b>Gists</b> to <b>Read and write</b>. Leave everything else as is.</li>
+          <li>Tap <b>Generate token</b> and copy it. It can only read and write your gists, nothing else.</li>
+        </ol></details>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:8px 0">
+        <div><label class="note">GitHub token</label><input type="password" id="sync-token" placeholder="github_pat_…" style="width:100%" autocomplete="off"></div>
+        <div><label class="note">Sync passphrase (same on every device)</label><input type="password" id="sync-pass" placeholder="make one up and save it" style="width:100%" autocomplete="new-password"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" id="sync-on" type="button">Turn on sync</button>
+        <button class="btn" id="sync-now" type="button" hidden>Sync now</button>
+        <button class="btn" id="sync-off" type="button" hidden>Turn off on this device</button>
+        <span class="note" id="sync-status"></span>
+      </div>
+      <p class="note" style="margin-top:8px">If you forget the passphrase, the synced copy can't be opened. Your data on each device stays put, and you can start over with a new passphrase.</p>
+    </div>
     <div class="panel">
       <h2>Letters to owners</h2>
       <p class="note">Your details go on every letter. Edit the wording below; words in {braces} are filled in for each property.</p>
@@ -548,7 +570,7 @@ const ENDPOINTS = window.CDF_ENDPOINTS || {BACKTAX, UNPAID, LIR};
 /* ------------------------------------------------------------------ storage */
 const store = {
   get(k, d) { try { const v = localStorage.getItem('cdf_' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('cdf_' + k, JSON.stringify(v)); } catch (e) { console.warn('save failed', e); } }
+  set(k, v) { try { localStorage.setItem('cdf_' + k, JSON.stringify(v)); } catch (e) { console.warn('save failed', e); } if (store.onset) store.onset(k); }
 };
 const DEFAULT_W = {distress: 1, type: 1, motivation: 1, location: 1, quality: 1, equity: 1, signals: 1, usu: 0.5, fit: 1.5};
 const PLAN_W = {
@@ -1499,7 +1521,7 @@ function renderAssump() {
     row.append(lab, i); box.append(row);
   });
 }
-function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[id], patch); store.set('track', state.track); }
+function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[id], patch, {u: Date.now()}); store.set('track', state.track); }
 
 const TCOLS = [['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
   ['years_delinquent', 'Yrs', 'n'], ['acres', 'Lot ac', 'n'], ['bldg_sqft', 'Bldg sq ft', 'n'], ['built_yr', 'Built', 'n'], ['mkt_value', 'Value', 'n'],
@@ -1721,6 +1743,109 @@ function openLeadAnywhere(r) {
   openLead(r.uid, true);
 }
 
+/* ------------------------------------------------------------------ sync between devices */
+const SYNC_SETTINGS = ['weights', 'plan', 'assump', 'me', 'theme', 'mly', 'gkey'];
+const SYNC_DESC = 'cache-lead-finder-sync (encrypted)', SYNC_FILE = 'lead-finder-sync.json';
+const sync = {cfg: store.get('sync', null), key: null, salt: null, timer: null, busy: false, applying: false};
+const b64 = (u8) => btoa(String.fromCharCode(...u8)), unb64 = (s2) => Uint8Array.from(atob(s2), (c) => c.charCodeAt(0));
+async function syncKey(pass, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name: 'PBKDF2', salt, iterations: 250000, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+}
+async function encryptPayload(obj) {
+  if (!sync.key) { sync.salt = crypto.getRandomValues(new Uint8Array(16)); sync.key = await syncKey(sync.cfg.pass, sync.salt); }
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, sync.key, new TextEncoder().encode(JSON.stringify(obj))));
+  return JSON.stringify({v: 1, salt: b64(sync.salt), iv: b64(iv), data: b64(ct)});
+}
+async function decryptPayload(text) {
+  const j = JSON.parse(text), salt = unb64(j.salt);
+  if (!sync.key || !sync.salt || b64(sync.salt) !== j.salt) { sync.key = await syncKey(sync.cfg.pass, salt); sync.salt = salt; }
+  try { return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(j.iv)}, sync.key, unb64(j.data)))); }
+  catch (e) { sync.key = null; throw new Error('wrong passphrase: this doesn\'t match the passphrase used on your other device'); }
+}
+async function gh(path, opts = {}) {
+  const res = await fetch('https://api.github.com' + path, Object.assign({}, opts, {headers: {Authorization: 'Bearer ' + sync.cfg.token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json'}}));
+  if (res.status === 401) throw new Error('GitHub didn\'t accept the token (expired or mistyped?)');
+  if (res.status === 403 || res.status === 404) throw new Error('the token doesn\'t have Gists read and write permission');
+  if (!res.ok) throw new Error('GitHub error ' + res.status);
+  return res.json();
+}
+function localPayload() {
+  const settings = {}; SYNC_SETTINGS.forEach((k) => { settings[k] = store.get(k, null); });
+  return {track: state.track, seen: state.seen, imports: state.imports, settings, setU: store.get('setU', 0)};
+}
+function mergeRemote(rem) {
+  let changed = false;
+  const tr = rem.track || {};
+  Object.keys(tr).forEach((id) => {
+    const a = state.track[id], b = tr[id];
+    if (!a || (b.u || 0) > (a.u || 0)) {
+      const keyOf = (x) => x.d + '|' + x.what, seenLog = new Set((b.log || []).map(keyOf));
+      const extra = ((a && a.log) || []).filter((x) => !seenLog.has(keyOf(x)));
+      state.track[id] = Object.assign({}, b, extra.length ? {log: (b.log || []).concat(extra).sort((x, y) => x.d.localeCompare(y.d))} : {});
+      changed = true;
+    }
+  });
+  Object.entries(rem.seen || {}).forEach(([id, d]) => { if (!state.seen[id] || d < state.seen[id]) { state.seen[id] = d; changed = true; } });
+  const have = new Set(state.imports.map((l) => l.name));
+  (rem.imports || []).forEach((l) => { if (!have.has(l.name)) { state.imports.push(l); changed = true; } });
+  const settingsChanged = (rem.setU || 0) > store.get('setU', 0);
+  sync.applying = true;
+  try {
+    store.set('track', state.track); store.set('seen', state.seen); store.set('imports', state.imports);
+    if (settingsChanged) {
+      Object.entries(rem.settings || {}).forEach(([k, v]) => { if (v != null) store.set(k, v); });
+      store.set('setU', rem.setU);
+      state.w = Object.assign({}, DEFAULT_W, store.get('weights', {})); state.p = Object.assign({}, DEFAULT_P, store.get('plan', {}));
+      state.a = Object.assign({}, DEFAULT_A, store.get('assump', {})); state.me = Object.assign({}, state.me, store.get('me', {}));
+      state.key = store.get('gkey', ''); state.mly = store.get('mly', ''); $('gkey').value = state.key; $('mlykey').value = state.mly;
+      applyTheme(store.get('theme', 'auto')); renderPlan(); renderWeights(); renderAssump(); renderMe();
+    }
+  } finally { sync.applying = false; }
+  return changed || settingsChanged;
+}
+async function syncRun(reason) {
+  if (!sync.cfg || sync.busy) return;
+  sync.busy = true; setSyncStatus('Syncing…');
+  try {
+    if (!sync.cfg.gist) {
+      const list = await gh('/gists?per_page=100');
+      const g = list.find((x) => x.description === SYNC_DESC && x.files && x.files[SYNC_FILE]);
+      if (g) sync.cfg.gist = g.id;
+    }
+    let remote = null;
+    if (sync.cfg.gist) {
+      const g = await gh('/gists/' + sync.cfg.gist), f = g.files && g.files[SYNC_FILE];
+      if (f) remote = await decryptPayload(f.truncated ? await (await fetch(f.raw_url)).text() : f.content);
+    }
+    const changedLocal = remote ? mergeRemote(remote) : false;
+    const content = await encryptPayload(localPayload());
+    if (sync.cfg.gist) await gh('/gists/' + sync.cfg.gist, {method: 'PATCH', body: JSON.stringify({files: {[SYNC_FILE]: {content}}})});
+    else { const g = await gh('/gists', {method: 'POST', body: JSON.stringify({description: SYNC_DESC, public: false, files: {[SYNC_FILE]: {content}}})}); sync.cfg.gist = g.id; }
+    sync.cfg.last = Date.now(); sync.applying = true; store.set('sync', sync.cfg); sync.applying = false;
+    if (changedLocal) { rescore(); fillCities(); updateDue(); if (state.view === 'pipe') renderPipe(); }
+    setSyncStatus('Synced ' + new Date(sync.cfg.last).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}));
+  } catch (e) {
+    setSyncStatus('Sync failed: ' + e.message, true);
+  } finally { sync.busy = false; }
+}
+function setSyncStatus(msg, bad) { const e = $('sync-status'); if (e) { e.textContent = msg; e.style.color = bad ? 'var(--bad)' : ''; } }
+function syncSoon() { if (!sync.cfg) return; clearTimeout(sync.timer); sync.timer = setTimeout(() => syncRun('change'), 4000); }
+store.onset = (k) => {
+  if (sync.applying) return;
+  if (SYNC_SETTINGS.includes(k)) { try { localStorage.setItem('cdf_setU', JSON.stringify(Date.now())); } catch (e) { /* ignore */ } }
+  if (k === 'track' || k === 'seen' || k === 'imports' || SYNC_SETTINGS.includes(k)) syncSoon();
+};
+function renderSync(keepInputs) {
+  const on = !!sync.cfg;
+  $('sync-on').hidden = on; $('sync-now').hidden = !on; $('sync-off').hidden = !on;
+  $('sync-token').disabled = on; $('sync-pass').disabled = on;
+  if (!keepInputs) { $('sync-token').value = on ? '••••••••' : ''; $('sync-pass').value = on ? '••••••••' : ''; }
+  if (on && sync.cfg.last) setSyncStatus('Synced ' + new Date(sync.cfg.last).toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}));
+  else if (!on) setSyncStatus('Off');
+}
+
 /* ------------------------------------------------------------------ settings */
 function renderWeights() {
   const box = $('weights'); box.replaceChildren();
@@ -1847,7 +1972,7 @@ $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 function applyTheme(t) {
-  store.set('theme', t);
+  if (store.get('theme', 'auto') !== t) store.set('theme', t);
   document.documentElement.dataset.theme = t === 'auto' ? (darkMQ && darkMQ.matches ? 'dark' : 'light') : t;
   document.querySelectorAll('#themeseg button').forEach((b) => b.classList.toggle('on', b.dataset.t === t));
   if (window.L && state.view === 'map') renderMap();
@@ -1865,6 +1990,20 @@ $('me-offer').onchange = () => { state.me.offer = $('me-offer').checked; store.s
 $('me-tpl').onchange = () => { state.me.tpl = $('me-tpl').value; store.set('me', state.me); };
 $('me-reset').onclick = () => { state.me.tpl = DEFAULT_TPL; store.set('me', state.me); $('me-tpl').value = DEFAULT_TPL; };
 renderMe(); updateDue();
+$('sync-on').onclick = async () => {
+  const token = $('sync-token').value.trim(), pass = $('sync-pass').value;
+  if (!token || pass.length < 8) { setSyncStatus('Enter the token and a passphrase of at least 8 characters.', true); return; }
+  if (!window.crypto || !crypto.subtle) { setSyncStatus('This browser can\'t encrypt. Open the site over https.', true); return; }
+  sync.cfg = {token, pass}; sync.key = null; sync.salt = null;
+  await syncRun('setup');
+  if (/failed/i.test($('sync-status').textContent)) { const msg = $('sync-status').textContent; sync.cfg = null; store.set('sync', null); renderSync(true); setSyncStatus(msg, true); }
+  else renderSync();
+};
+$('sync-now').onclick = () => syncRun('manual');
+$('sync-off').onclick = () => { if (confirm('Stop syncing on this device? Your data here stays; the synced copy stays in your GitHub account.')) { sync.cfg = null; sync.key = null; store.set('sync', null); renderSync(); } };
+renderSync();
+if (sync.cfg) setTimeout(() => syncRun('startup'), 1500);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && sync.cfg && Date.now() - (sync.cfg.last || 0) > 60000) syncRun('focus'); });
 restoreUi(); renderPlan(); renderWeights(); renderAssump(); renderList(); updateStatus();
 </script>
 </body>
