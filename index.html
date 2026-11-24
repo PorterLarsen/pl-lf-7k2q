@@ -1304,7 +1304,7 @@ function card(r) {
   fact('Lot', r.acres != null ? (+r.acres).toFixed(2) + ' ac' : '—');
   fact('Building', r.bldg_sqft ? fmtN(r.bldg_sqft) + ' sq ft' : '—');
   fact('Built', r.built_yr || '—');
-  fact('Equity', r.equity_pct != null ? Math.round(r.equity_pct) + '%' : '—');
+  fact(r.loan_known ? 'Equity' : 'Equity (if no loan)', r.equity_pct != null ? (r.loan_known ? '' : 'up to ') + Math.round(r.equity_pct) + '%' : '—');
   body.append(facts);
   if (r.score_reasons) body.append(el('div', 'why', r.score_reasons));
 
@@ -1326,7 +1326,7 @@ function card(r) {
     body.append(ql);
   }
   // deal analysis
-  const dealHint = r.target_offer != null ? 'Offer ' + fmtUsd(r.target_offer) + (r.equity_pct != null ? ' · ' + Math.round(r.equity_pct) + '% equity' : '') : '';
+  const dealHint = r.target_offer != null ? 'Offer ' + fmtUsd(r.target_offer) + (r.equity_pct != null ? ' · ' + (r.loan_known ? '' : 'up to ') + Math.round(r.equity_pct) + '% equity' : '') : '';
   body.append(section('deal', 'Deal & offer', dealHint, dealBlock(r)));
 
   // owner contact
