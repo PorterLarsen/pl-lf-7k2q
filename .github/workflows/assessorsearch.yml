@@ -1,0 +1,41 @@
+name: AssessorSearch loans & equity
+
+on:
+  workflow_dispatch:
+    inputs:
+      parcels:
+        description: "Parcel IDs to look up (comma-separated). Leave blank for all leads, homes first."
+        required: false
+        default: ""
+      credit_cap:
+        description: "Most credits to spend this run (API Starter includes 500 a month)"
+        required: false
+        default: "480"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assessorsearch
+  cancel-in-progress: false
+
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Look up loans, equity and ownership
+        env:
+          ASSESSORSEARCH_API_KEY: ${{ secrets.ASSESSORSEARCH_API_KEY }}
+          ASSESSORSEARCH_BASE_URL: ${{ vars.ASSESSORSEARCH_BASE_URL }}
+          PARCELS: ${{ github.event.inputs.parcels }}
+          CREDIT_CAP: ${{ github.event.inputs.credit_cap }}
+        run: python3 scripts/assessorsearch.py
+      - name: Save results
+        if: always()
+        run: |
+          git config user.name "assessor-bot"
+          git config user.email "assessor-bot@users.noreply.github.com"
+          git add data/assessor.json || true
+          git diff --cached --quiet || git commit -m "AssessorSearch update"
+          git push

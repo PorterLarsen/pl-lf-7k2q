@@ -810,7 +810,18 @@ function buildRows() {
   }));
   state.rows = tax.concat([...extra.values()]);
   const rc = (state.rc && state.rc.parcels) || {};
-  state.rows.forEach((r) => { r.rc = (r.tax_id && rc[r.tax_id]) || null; });
+  const asd = (state.asr && state.asr.parcels) || {};
+  state.rows.forEach((r) => {
+    r.rc = (r.tax_id && rc[r.tax_id]) || null;
+    r.asr = (r.tax_id && asd[r.tax_id]) || null;
+    if (r.asr && r.loan_balance == null && r.asr.combined_estimated_loan_balance != null) { r.loan_balance = r.asr.combined_estimated_loan_balance; r.loan_src = 'AssessorSearch'; }
+  });
+}
+async function loadAssessor() {
+  try {
+    const res = await fetch('data/assessor.json?t=' + Date.now(), {cache: 'no-store'});
+    if (res.ok) { state.asr = await res.json(); if (state.data) rescore(); }
+  } catch (e) { /* no file yet */ }
 }
 async function loadRentcast() {
   try {
@@ -922,11 +933,11 @@ function repairPicker(r, redraw) {
 }
 function analyze(r) {
   const t = state.track[r.uid] || {}, a = state.a;
-  const rcv = r.rc && r.rc.value && num(r.rc.value.price);
-  const value = num(t.val) ?? num(r.est_value) ?? rcv ?? num(r.mkt_value);
+  const rcv = r.rc && r.rc.value && num(r.rc.value.price), asv = r.asr && num(r.asr.estimated_market_value);
+  const value = num(t.val) ?? num(r.est_value) ?? rcv ?? asv ?? num(r.mkt_value);
   const loan = num(t.loan) ?? num(r.loan_balance);
   const repairs = num(t.rep) ?? defaultRepairs(r);
-  const d = {value, loan, loanKnown: loan != null, repairs, backTaxes: r.total_due || 0, valueSource: num(t.val) != null ? 'your estimate' : num(r.est_value) != null ? 'imported estimate' : rcv != null ? 'RentCast, from recent sales' : 'county assessor'};
+  const d = {value, loan, loanKnown: loan != null, repairs, backTaxes: r.total_due || 0, valueSource: num(t.val) != null ? 'your estimate' : num(r.est_value) != null ? 'imported estimate' : rcv != null ? 'RentCast, from recent sales' : asv != null ? 'AssessorSearch estimate' : 'county assessor'};
   if (!value) return d;
   const debt = (loan || 0) + d.backTaxes;
   d.equity = value - debt; d.equityPct = Math.round(100 * d.equity / value);
@@ -1511,6 +1522,21 @@ function rcPanel(r, d) {
   }
   return box;
 }
+function asrPanel(r) {
+  const a = r.asr, box = el('div', 'rc');
+  box.append(el('h5', null, 'Loans & ownership · AssessorSearch · ' + (a.fetched || '').slice(0, 10)));
+  const line = el('div', 'eq');
+  const kv = (k, v) => { if (v == null || v === '') return; const x = el('span'); x.append(document.createTextNode(k + ': '), el('b', null, v)); line.append(x); };
+  kv('Est. loan balance', a.combined_estimated_loan_balance != null ? (a.combined_estimated_loan_balance ? fmtUsd(a.combined_estimated_loan_balance) : 'none on record') : null);
+  kv('Est. equity', a.estimated_equity != null ? fmtUsd(a.estimated_equity) : null);
+  kv('Value', a.estimated_market_value != null ? fmtUsd(a.estimated_market_value) : null);
+  kv('Occupancy', a.occupancy); kv('Owner since', (a.ownership_date || a.owner_since || a.last_sale_date || '').slice(0, 7) || null);
+  kv('Last sale', a.last_sale_amount ? fmtUsd(a.last_sale_amount) : null);
+  box.append(line);
+  (a.mortgages || []).forEach((m) => box.append(el('div', 'dealnote', [m.type || 'Loan', m.amount ? fmtUsd(m.amount) : '', m.lender, m.recording_date ? 'recorded ' + m.recording_date.slice(0, 10) : '', m.interest_rate ? m.interest_rate + '%' : ''].filter(Boolean).join(' · '))));
+  box.append(el('div', 'dealnote', '"None on record" can also mean missing data. Before a firm offer, confirm against the trust deeds in CORE or a title report.'));
+  return box;
+}
 function dealBlock(r) {
   const box = el('div', 'deal');
   const draw = () => {
@@ -1536,7 +1562,7 @@ function dealBlock(r) {
     kv('Owed', d.loanKnown ? fmtUsd((d.loan || 0) + d.backTaxes) : fmtUsd(d.backTaxes) + ' back taxes + unknown loan');
     kv('Equity', (d.loanKnown ? '' : 'up to ') + fmtUsd(d.equity) + ' (' + d.equityPct + '%)');
     box.append(eq);
-    box.append(rcPanel(r, d));
+    box.append(rcPanel(r, d)); if (r.asr) box.append(asrPanel(r));
     const t = el('table', 'offers');
     const hr = el('tr'); ['Offer', 'Price', 'Your profit', 'Owner gets in cash', 'vs. listing'].forEach((h) => hr.append(el('th', null, h)));
     t.append(hr);
@@ -2078,14 +2104,14 @@ $('refresh').onclick = async () => {
     fresh.forEach((id) => { state.seen[id] = today; });
     store.set('seen', state.seen);
     state.data = data; store.set('data', data);
-    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList(); loadRentcast();
+    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList(); loadRentcast(); loadAssessor();
   } catch (e) {
     $('error').textContent = 'Refresh failed: ' + e.message + '. Your last saved list is still shown. Try again in a minute.'; $('error').hidden = false;
   } finally { btn.disabled = false; setProgress(0); updateStatus(); }
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-loadRentcast();
+loadRentcast(); loadAssessor();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
