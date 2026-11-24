@@ -1362,6 +1362,10 @@ function card(r) {
   }
   if (r.owner_type === 'Estate' || r.owner_type === 'Individual') { const a = el('a', null, 'Court records'); a.href = XCHANGE; a.target = '_blank'; a.rel = 'noopener'; acts.append(a); }
   if (r.owner_address) { const pl = el('button', null, 'Print letter'); pl.type = 'button'; pl.onclick = () => printLetters([r]); acts.prepend(pl); }
+  if (state.skipApi && r.full_address) {
+    const grp = state.rows.filter((o) => ownerKey(o) === ownerKey(r));
+    if (ownerNeedsTrace(grp)) { const ft = el('button', null, 'Find phone & email'); ft.type = 'button'; ft.onclick = async () => { ft.disabled = true; ft.textContent = 'Looking up…'; await traceOwners([grp]); }; acts.prepend(ft); }
+  }
   ct.append(acts);
   if ((r.phones || []).length || (r.emails || []).length) {
     const pl = el('div', 'phones');
@@ -1743,7 +1747,20 @@ function ownerGroups(rows) {
 function renderOwners(rows) {
   const groups = ownerGroups(rows), box = $('owners');
   $('count').textContent = `${groups.length} owners · ${rows.length} properties match`;
-  box.replaceChildren(...groups.slice(0, 150).map((g) => {
+  const head = [];
+  if (state.skipApi) {
+    const need = groups.filter((g) => ownerNeedsTrace(g.list) && g.list.some((r) => r.full_address)).slice(0, 50);
+    const bar = el('div', 'panel'); bar.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px';
+    const b = el('button', 'btn primary', need.length ? `Find phones & emails for ${need.length} owner${need.length === 1 ? '' : 's'}` : 'Everyone shown has been looked up');
+    b.type = 'button'; b.disabled = !need.length;
+    b.onclick = async () => {
+      if (!confirm(`Look up ${need.length} owners (one lookup each, even if they own several properties)? BatchData charges for each match. Owners already looked up are skipped.`)) return;
+      b.disabled = true; b.textContent = 'Looking up…'; await traceOwners(need.map((g) => g.list)); renderList();
+    };
+    bar.append(b, el('span', 'note', `${state.skipApi.used || 0} of ${state.skipApi.cap} lookups used this month. Filter first (for example Individual, Score 60+) to pick who to look up.`));
+    head.push(bar);
+  }
+  box.replaceChildren(...head, ...groups.slice(0, 150).map((g) => {
     const row = el('div', 'prow owner'), left = el('div');
     const nm = el('div', 'a', g.names.map(title).join(' / ') || 'Unknown owner');
     left.append(nm);
@@ -1764,6 +1781,11 @@ function renderOwners(rows) {
     show.onclick = () => { state.ui.owner = g.k; state.ui.mode = 'cards'; saveUi(); syncSortUi(); renderList(); scrollTo(0, 0); };
     acts.append(show);
     if (g.mail) { const pr = el('button', 'btn', 'Print letter'); pr.type = 'button'; pr.onclick = () => printLetters([g.list[0]]); acts.append(pr); }
+    if (state.skipApi && ownerNeedsTrace(g.list) && g.list.some((r) => r.full_address)) {
+      const ft = el('button', 'btn', 'Find phone & email'); ft.type = 'button';
+      ft.onclick = async () => { ft.disabled = true; ft.textContent = 'Looking up…'; await traceOwners([g.list]); renderList(); };
+      acts.append(ft);
+    }
     row.append(left, acts); return row;
   }));
   if (groups.length > 150) box.append(el('div', 'note', 'Showing the top 150 owners. Narrow the filters to see others.'));
@@ -1800,6 +1822,42 @@ function skipTraceCsv(rows) {
     const [fn, ln] = ownerNameParts(r), m = splitMail(r.owner_address), [street, city] = r.full_address.split(',').map((x) => x.trim());
     return [fn, ln, street, city, 'UT', CACHE_ZIP[String(city || '').toUpperCase()] || '', m.street, title(m.city), m.state, m.zip, r.tax_id, r.owner_name].map(esc).join(',');
   })).join('\n');
+}
+/* on-demand skip tracing through the Cloudflare function (only exists on the Cloudflare site) */
+state.skipApi = null;
+async function checkSkipApi() {
+  try {
+    const res = await fetch('api/skiptrace', {cache: 'no-store'});
+    if (res.ok) { const j = await res.json(); state.skipApi = j.configured ? j : null; if (state.data) renderList(); }
+  } catch (e) { /* not on Cloudflare */ }
+}
+function ownerNeedsTrace(rows) {
+  return !rows.some((r) => { const t = state.track[r.uid] || {}; return (t.phones || []).length || t.skipped; });
+}
+async function traceOwners(groups, force) {
+  // one lookup per owner, using their best property with a street address
+  const seen = new Set(), owners = [];
+  groups.forEach((list) => {
+    const r = list.find((x) => x.full_address); if (!r) return;
+    const k = ownerKey(r); if (seen.has(k)) return; seen.add(k);
+    const [street, city] = r.full_address.split(',').map((x) => x.trim());
+    owners.push({key: k, street, city, state: 'UT', zip: CACHE_ZIP[String(city || '').toUpperCase()] || ''});
+  });
+  if (!owners.length) { alert('Nothing to look up: these owners have no property street address on file.'); return; }
+  const res = await fetch('api/skiptrace', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({owners, force: !!force})});
+  const j = await res.json().catch(() => ({}));
+  const got = j.results || {};
+  Object.entries(got).forEach(([k, v]) => {
+    state.rows.filter((o) => ownerKey(o) === k).forEach((o) => {
+      const t = state.track[o.uid] || {};
+      const phones = (t.phones || []).concat((v.phones || []).filter((p) => !(t.phones || []).some((q) => q.n === p.n)));
+      saveTrack(o.uid, {phones, emails: [...new Set((t.emails || []).concat(v.emails || []))], skipped: v.fetched || today()});
+    });
+  });
+  if (j.used != null) state.skipApi = Object.assign({}, state.skipApi, {used: j.used, cap: j.cap});
+  rescore();
+  if (!res.ok) alert(j.error || 'Lookup failed.');
+  else alert(`Looked up ${j.looked_up || 0} owner${j.looked_up === 1 ? '' : 's'}` + (j.matched != null ? `; found contact info for ${j.matched}` : '') + (state.skipApi ? `. ${state.skipApi.used} of ${state.skipApi.cap} lookups used this month.` : '.'));
 }
 function importSkipResults(text) {
   const lst = readImport('skip', text);
@@ -2175,7 +2233,7 @@ $('refresh').onclick = async () => {
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-loadRentcast(); loadAssessor();
+loadRentcast(); loadAssessor(); checkSkipApi();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
