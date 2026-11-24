@@ -96,6 +96,9 @@ main{max-width:1180px;margin:0 auto;padding:16px}
 .badge{display:inline-block;background:var(--gold);color:#2a1d02;border-radius:999px;font-size:11px;padding:0 7px;margin-left:4px;font-weight:700}
 .num{width:90px}
 #ftoggle{display:none}
+#ownerchip{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}#ownerchip .tag{font-size:13px;padding:6px 12px}
+.prow.owner{align-items:start}.linkish{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font:inherit;font-size:12.5px;font-weight:600}
+#owners .phones{margin-top:6px}
 @media (max-width:720px){#ftoggle{display:inline-flex;align-items:center;gap:6px}.filterbar.collapsed>.filters:not(:first-child),.filterbar.collapsed>details{display:none}.filterbar.collapsed>.filters:first-child{margin-bottom:0}}
 @media (max-width:520px){.kpis{grid-template-columns:1fr 1fr;gap:8px}.kpi{padding:12px}.kpi b{font-size:22px}.hero{aspect-ratio:16/10}.filters .chk:first-of-type{flex:1}}
 
@@ -293,7 +296,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
           <option value="first_seen">Date added to list</option><option value="full_address">Address (A–Z)</option><option value="city">City (A–Z)</option>
         </select></label>
       <button class="btn" id="dir" type="button" aria-label="Sort direction">↓ High to low</button>
-      <button class="btn" id="viewtoggle" type="button">Table view</button>
+      <div class="seg" id="modeseg"><button type="button" data-m="cards">Cards</button><button type="button" data-m="table">Table</button><button type="button" data-m="owners">Owners</button></div>
       <button class="btn" id="ftoggle" type="button">Filters <span id="fcount"></span></button>
       <button class="btn" id="batchletters" type="button">Print letters</button>
     </div>
@@ -301,6 +304,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <select id="f-cat" aria-label="Type"><option value="">All types</option><option>Home</option><option>Multi-family</option><option>Land</option><option>Commercial / mixed</option><option>Other</option></select>
       <select id="f-city" aria-label="City"><option value="">All cities</option></select>
       <select id="f-status" aria-label="Status"><option value="">Any status</option><option>New</option><option>Researching</option><option>Contacted</option><option>Offer made</option><option>Pass</option></select>
+      <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
+      <label class="chk"><input type="checkbox" id="f-phone"> Has phone or email</label>
       <select id="f-min" aria-label="Minimum score"><option value="0">Any score</option><option value="50">Score 50+</option><option value="60">Score 60+</option><option value="70">Score 70+</option><option value="80">Score 80+</option></select>
       <label class="chk"><input type="checkbox" id="f-ts"> Tax-sale eligible</label>
       <label class="chk"><input type="checkbox" id="f-abs"> Absentee owner</label>
@@ -320,8 +325,6 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
         <select id="f-usu" aria-label="Distance to USU"><option value="">Any distance to USU</option><option value="1">Within 1 mile of USU</option><option value="2">Within 2 miles of USU</option><option value="3">Within 3 miles of USU</option><option value="5">Within 5 miles of USU</option></select>
         <select id="f-yrs" aria-label="Years behind"><option value="0">Any years behind</option><option value="2">2+ years behind</option><option value="3">3+ years behind</option><option value="4">4+ years behind</option></select>
         <select id="f-tag" aria-label="Imported list"><option value="">Any imported list</option><option value="__any">On any imported list</option></select>
-        <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
-        <label class="chk"><input type="checkbox" id="f-phone"> Has phone or email</label>
         <label class="chk"><input type="checkbox" id="f-oos"> Out-of-state owner</label>
         <label class="chk"><input type="checkbox" id="f-multi"> Owner has 3+ parcels</label>
         <label class="chk"><input type="checkbox" id="f-det"> Has lot &amp; building details</label>
@@ -331,6 +334,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     </details>
     </div>
     <div class="count" id="count"></div>
+    <div id="ownerchip" hidden></div>
+    <div id="owners" hidden></div>
     <div id="cards"></div>
     <div class="tablewrap" id="tablewrap" hidden><table class="ltable" id="ltable"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     <button class="btn more-btn" id="more" hidden>Show more</button>
@@ -601,7 +606,7 @@ const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', moti
   quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists', usu: 'Close to USU', fit: 'Fits my cash (live-in)'};
 const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
   'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
-const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
+const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
 const TEXT_SORTS = new Set(['full_address', 'city']);
 const LOW_FIRST = new Set(['full_address', 'city', 'miles_usu', 'cash_needed']);
 let state = {
@@ -1161,6 +1166,7 @@ function filtered() {
     if ($('f-det').checked && !r.enriched) return false;
     if ($('f-new').checked && !isNew(r)) return false;
     if ($('f-otype').value && r.owner_type !== $('f-otype').value) return false;
+    if (state.ui.owner && ownerKey(r) !== state.ui.owner) return false;
     if ($('f-phone').checked && !(r.phone || r.email)) return false;
     if ($('f-eq').value && !(r.equity_pct >= +$('f-eq').value)) return false;
     if ($('f-loan').checked && !r.loan_known) return false;
@@ -1343,6 +1349,8 @@ function card(r) {
   // owner contact
   const ct = el('div', 'contact');
   ct.append(el('div', 'who', (r.owner_name || 'Owner name not loaded yet') + (r.owner_type ? '  ·  ' + r.owner_type : '')));
+  const sameOwner = state.rows.filter((o) => ownerKey(o) === ownerKey(r)).length;
+  if (sameOwner > 1 && state.ui.owner !== ownerKey(r)) { const b = el('button', 'btn', `See all ${sameOwner} properties by this owner`); b.type = 'button'; b.style.margin = '6px 0'; b.onclick = () => { state.ui.owner = ownerKey(r); saveUi(); renderList(); scrollTo(0, 0); }; ct.append(b); }
   if (r.owner_address) ct.append(el('div', 'mail', 'Tax bill mailed to:\n' + mailingLabel(r).split('\n').slice(1).join('\n')));
   const acts = el('div', 'acts');
   if (r.owner_address) { const b = el('button', null, 'Copy mailing label'); b.type = 'button'; b.onclick = () => copyText(mailingLabel(r), b); acts.append(b); }
@@ -1636,10 +1644,20 @@ function renderList() {
   const rows = filtered();
   $('empty').hidden = !!state.data;
   $('count').textContent = state.data ? `${rows.length} of ${state.rows.length} properties match` : '';
-  const table = state.ui.mode === 'table';
-  $('cards').hidden = table; $('tablewrap').hidden = !table || !state.data;
+  const table = state.ui.mode === 'table', owners = state.ui.mode === 'owners';
+  $('cards').hidden = table || owners; $('tablewrap').hidden = !table || !state.data; $('owners').hidden = !owners;
+  const oc = $('ownerchip'); oc.hidden = !state.ui.owner;
+  if (state.ui.owner) {
+    const g = state.rows.filter((r) => ownerKey(r) === state.ui.owner), nm = g[0] ? title(g[0].owner_name || 'Unknown owner') : '';
+    const x = el('button', 'btn', '✕ Show all owners'); x.type = 'button'; x.onclick = () => { state.ui.owner = ''; saveUi(); renderList(); };
+    oc.replaceChildren(el('span', 'tag', 'Owner: ' + nm + ' · ' + g.length + ' properties'), x);
+  }
+  if (owners) { renderOwners(rows); $('more').hidden = true; return finishList(); }
   if (table) renderTable(rows); else $('cards').replaceChildren(...rows.slice(0, state.shown).map(card));
   $('more').hidden = rows.length <= state.shown;
+  finishList();
+}
+function finishList() {
   const n = MORE.filter((id) => { const e = $(id); return e.type === 'checkbox' ? e.checked : e.value && e.value !== '0'; }).length;
   $('mf-count').replaceChildren(...(n ? [el('span', 'badge', String(n))] : []));
   const nAll = FILTERS.filter((id) => id !== 'q' && (() => { const e = $(id); return e && (e.type === 'checkbox' ? e.checked : e.value && e.value !== '0'); })()).length;
@@ -1660,7 +1678,7 @@ function syncSortUi() {
   $('sort').value = state.ui.sort;
   const text = TEXT_SORTS.has(state.ui.sort), date = state.ui.sort === 'first_seen';
   $('dir').textContent = state.ui.dir === 'asc' ? (text ? '↑ A to Z' : date ? '↑ Oldest first' : '↑ Low to high') : (text ? '↓ Z to A' : date ? '↓ Newest first' : '↓ High to low');
-  $('viewtoggle').textContent = state.ui.mode === 'table' ? 'Card view' : 'Table view';
+  document.querySelectorAll('#modeseg button').forEach((b) => b.classList.toggle('on', b.dataset.m === (state.ui.mode || 'cards')));
 }
 function saveUi() {
   state.ui.filters = {};
@@ -1705,6 +1723,52 @@ function openLead(id, toCards) {
   const c = $('p-' + id); if (c) { c.scrollIntoView({behavior: 'smooth', block: 'center'}); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 2000); }
 }
 
+/* ------------------------------------------------------------------ owners */
+function ownerKey(r) {
+  const a = String(r.owner_address || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return a ? 'a:' + a.slice(0, 40) : 'n:' + String(r.owner_name || r.uid).toUpperCase().replace(/[^A-Z]/g, '');
+}
+function ownerGroups(rows) {
+  const m = new Map();
+  rows.forEach((r) => { const k = ownerKey(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+  return [...m.entries()].map(([k, list]) => {
+    list.sort((a, b) => b.score - a.score);
+    const phones = [], seen = new Set(), emails = new Set();
+    list.forEach((r) => { (r.phones || []).forEach((p) => { if (!seen.has(p.n)) { seen.add(p.n); phones.push(p); } }); (r.emails || []).forEach((e) => emails.add(e)); if (r.phone && !seen.size) { const d = r.phone.replace(/\D/g, ''); if (d && !seen.has(d)) { seen.add(d); phones.push({n: d, type: '', dnc: false}); } } if (r.email) emails.add(r.email); });
+    const names = [...new Set(list.map((r) => r.owner_name).filter(Boolean))];
+    return {k, list, names, type: list[0].owner_type, mail: list[0].owner_address, phones, emails: [...emails],
+      due: list.reduce((a, r) => a + (r.total_due || 0), 0), value: list.reduce((a, r) => a + (r.mkt_value || 0), 0), best: list[0].score};
+  }).sort((a, b) => b.best - a.best || b.list.length - a.list.length);
+}
+function renderOwners(rows) {
+  const groups = ownerGroups(rows), box = $('owners');
+  $('count').textContent = `${groups.length} owners · ${rows.length} properties match`;
+  box.replaceChildren(...groups.slice(0, 150).map((g) => {
+    const row = el('div', 'prow owner'), left = el('div');
+    const nm = el('div', 'a', g.names.map(title).join(' / ') || 'Unknown owner');
+    left.append(nm);
+    left.append(el('div', 'm', [g.type, g.mail ? 'mails to ' + g.mail.replace(/\s+/g, ' ') : 'no mailing address'].filter(Boolean).join(' · ')));
+    left.append(el('div', 'm', `${g.list.length} propert${g.list.length === 1 ? 'y' : 'ies'} · ${fmtUsd(g.due)} back taxes · ${fmtUsd(g.value)} county value · best score ${Math.round(g.best)}`));
+    const props = el('div', 'm'); props.style.marginTop = '4px';
+    g.list.slice(0, 6).forEach((r, i) => { const a = el('button', 'linkish', (r.full_address || 'Parcel ' + r.tax_id).split(',')[0]); a.type = 'button'; a.onclick = () => openLeadAnywhere(r); if (i) props.append(document.createTextNode(' · ')); props.append(a); });
+    if (g.list.length > 6) props.append(document.createTextNode(` · +${g.list.length - 6} more`));
+    left.append(props);
+    if (g.phones.length || g.emails.length) {
+      const pl = el('div', 'phones');
+      g.phones.forEach((p) => { const r2 = el('div', 'ph' + (p.dnc ? ' dnc' : '')), a = el('a', null, fmtPhone(p.n)); a.href = 'tel:' + p.n; r2.append(a); if (p.type) r2.append(el('span', 'pt', p.type)); if (p.dnc) r2.append(el('span', 'pt warn', 'Do Not Call')); pl.append(r2); });
+      g.emails.forEach((e) => { const r2 = el('div', 'ph'), a = el('a', null, e); a.href = 'mailto:' + e; r2.append(a); pl.append(r2); });
+      left.append(pl);
+    } else left.append(el('div', 'm', 'No phone or email yet: run skip tracing (Settings → Skip tracing).'));
+    const acts = el('div', 'acts');
+    const show = el('button', 'btn', 'Show properties'); show.type = 'button';
+    show.onclick = () => { state.ui.owner = g.k; state.ui.mode = 'cards'; saveUi(); syncSortUi(); renderList(); scrollTo(0, 0); };
+    acts.append(show);
+    if (g.mail) { const pr = el('button', 'btn', 'Print letter'); pr.type = 'button'; pr.onclick = () => printLetters([g.list[0]]); acts.append(pr); }
+    row.append(left, acts); return row;
+  }));
+  if (groups.length > 150) box.append(el('div', 'note', 'Showing the top 150 owners. Narrow the filters to see others.'));
+}
+
 /* ------------------------------------------------------------------ skip tracing */
 const fmtPhone = (d) => d && d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d;
 const CACHE_ZIP = {LOGAN: '84321', 'NORTH LOGAN': '84341', 'RIVER HEIGHTS': '84321', NIBLEY: '84321', PROVIDENCE: '84332', MILLVILLE: '84326', HYRUM: '84319', WELLSVILLE: '84339',
@@ -1724,7 +1788,7 @@ function skipTraceRows() {
     if (t.status === 'Pass') return false;
     if ((t.phones || []).length) { skipped.done++; return false; }
     if (!r.full_address) { skipped.noaddr++; return false; }
-    const k = r.owner_address ? (r.owner_name || '') + '|' + r.owner_address : r.full_address;   // one row per owner: they're charged per record
+    const k = r.owner_address ? ownerKey(r) : r.full_address;   // one row per owner (same mailing address): they're charged per record
     if (seen.has(k)) return false; seen.add(k); return true;
   });
   return {rows, skipped};
@@ -1748,7 +1812,7 @@ function importSkipResults(text) {
     matched++;
     if (x.phones.length) withPhone++;
     dnc += x.phones.filter((p) => p.dnc).length;
-    const same = r.owner_address ? state.rows.filter((o) => o.owner_address === r.owner_address && o.owner_name === r.owner_name) : [r];
+    const same = r.owner_address ? state.rows.filter((o) => ownerKey(o) === ownerKey(r)) : [r];
     same.forEach((o) => {
       const t = state.track[o.uid] || {};
       const phones = (t.phones || []).concat(x.phones.filter((p) => !(t.phones || []).some((q) => q.n === p.n)));
@@ -2036,8 +2100,8 @@ document.querySelectorAll('nav button').forEach((b) => b.onclick = () => show(b.
 FILTERS.forEach((id) => $(id).addEventListener($(id).tagName === 'INPUT' && $(id).type !== 'checkbox' ? 'input' : 'change', () => { state.shown = 40; state.mapFitted = false; saveUi(); renderList(); }));
 $('sort').onchange = () => { state.ui.sort = $('sort').value; state.ui.dir = LOW_FIRST.has(state.ui.sort) ? 'asc' : 'desc'; saveUi(); syncSortUi(); renderList(); };
 $('dir').onclick = () => { state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; saveUi(); syncSortUi(); renderList(); };
-$('viewtoggle').onclick = () => { state.ui.mode = state.ui.mode === 'table' ? 'cards' : 'table'; state.shown = Math.max(state.shown, state.ui.mode === 'table' ? 100 : 40); saveUi(); syncSortUi(); renderList(); };
-$('f-clear').onclick = () => { FILTERS.forEach((id) => { const e = $(id); if (e.type === 'checkbox') e.checked = false; else e.value = e.tagName === 'SELECT' && e.options[0] ? e.options[0].value : ''; }); saveUi(); renderList(); };
+document.querySelectorAll('#modeseg button').forEach((b) => b.onclick = () => { state.ui.mode = b.dataset.m; state.shown = Math.max(state.shown, state.ui.mode === 'table' ? 100 : 40); saveUi(); syncSortUi(); renderList(); });
+$('f-clear').onclick = () => { state.ui.owner = ''; FILTERS.forEach((id) => { const e = $(id); if (e.type === 'checkbox') e.checked = false; else e.value = e.tagName === 'SELECT' && e.options[0] ? e.options[0].value : ''; }); saveUi(); renderList(); };
 $('more').onclick = () => { state.shown += state.ui.mode === 'table' ? 100 : 40; renderList(); };
 $('a-reset').onclick = () => { state.a = Object.assign({}, DEFAULT_A); store.set('assump', state.a); renderAssump(); rescore(); };
 $('w-reset').onclick = () => { state.w = Object.assign({}, DEFAULT_W); store.set('weights', state.w); renderWeights(); rescore(); };
