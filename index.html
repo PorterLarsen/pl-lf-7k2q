@@ -675,7 +675,7 @@ async function fetchDetails(ids, onStep) {
     const chunk = ids.slice(i, i + 50);
     try {
       const j = await jsonp(ENDPOINTS.LIR, {where: 'PARCEL_ID IN (' + chunk.map((t) => "'" + String(t).replace(/'/g, '') + "'").join(',') + ')',
-        outFields: 'PARCEL_ID,PARCEL_ACRES,TOTAL_MKT_VALUE,LAND_MKT_VALUE,PROP_CLASS,BLDG_SQFT,FLOORS_CNT,BUILT_YR,EFFBUILT_YR,CONST_MATERIAL,SUBDIV_NAME,HOUSE_CNT,PRIMARY_RES,PROP_TYPE', returnGeometry: 'true', outSR: '4326', geometryPrecision: '6'});
+        outFields: 'PARCEL_ID,PARCEL_ACRES,TOTAL_MKT_VALUE,LAND_MKT_VALUE,PROP_CLASS,BLDG_SQFT,FLOORS_CNT,BUILT_YR,EFFBUILT_YR,CONST_MATERIAL,SUBDIV_NAME,HOUSE_CNT,PRIMARY_RES', returnGeometry: 'true', outSR: '4326', geometryPrecision: '6'});
       (j.features || []).forEach((f) => {
         const a = f.attributes, e0 = det[a.PARCEL_ID], e = det[a.PARCEL_ID] || (det[a.PARCEL_ID] = {acres: a.PARCEL_ACRES, mkt_value: a.TOTAL_MKT_VALUE, land_value: a.LAND_MKT_VALUE, prop_class: a.PROP_CLASS, subdivision: a.SUBDIV_NAME, bldg_sqft: 0, floors: null, built_yr: null, construction: null, buildings: [], eff_yr: null, primary_res: a.PRIMARY_RES || null, house_cnt: a.HOUSE_CNT || null});
         if (!e0 && f.geometry) { const rg = ringOf(f.geometry); if (rg) { e.ring = rg; [e.lat, e.lon] = centroid(f.geometry); } }
@@ -684,7 +684,7 @@ async function fetchDetails(ids, onStep) {
           e.construction = e.construction || (a.CONST_MATERIAL ? String(a.CONST_MATERIAL).replace(/\s+/g, ' ').trim() : null);
           if (a.BUILT_YR > 1800) e.built_yr = e.built_yr ? Math.min(e.built_yr, a.BUILT_YR) : a.BUILT_YR;
           if (a.EFFBUILT_YR > 1800) e.eff_yr = Math.max(e.eff_yr || 0, a.EFFBUILT_YR);
-          e.buildings.push({sqft: a.BLDG_SQFT, built: a.BUILT_YR > 1800 ? a.BUILT_YR : null, eff: a.EFFBUILT_YR > 1800 ? a.EFFBUILT_YR : null, floors: a.FLOORS_CNT || null, type: a.PROP_TYPE || null, material: a.CONST_MATERIAL ? String(a.CONST_MATERIAL).trim() : null});
+          e.buildings.push({sqft: a.BLDG_SQFT, built: a.BUILT_YR > 1800 ? a.BUILT_YR : null, eff: a.EFFBUILT_YR > 1800 ? a.EFFBUILT_YR : null, floors: a.FLOORS_CNT || null, material: a.CONST_MATERIAL ? String(a.CONST_MATERIAL).trim() : null});
         }
         if (a.PRIMARY_RES === 'Y') e.primary_res = 'Y';
       });
