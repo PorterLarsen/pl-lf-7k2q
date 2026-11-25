@@ -500,6 +500,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
     </div>
     <div class="panel" id="syncpanel">
       <h2>Sync between devices</h2>
+      <p class="note"><b>Automatic:</b> when you're logged in through Cloudflare, your lead list, stars, notes, follow-ups and settings are saved to your account and load on any device or browser you log in from. Nothing to set up. <span id="cloud-status"></span></p>
+      <details class="morefilters"><summary>Backup option: encrypted GitHub sync (not needed)</summary>
       <p class="note">Keeps your statuses, notes, follow-ups, letters and settings the same on your phone and computer. Everything is encrypted with a passphrase you choose before it leaves the device, then stored in a private file (a "secret gist") in your own GitHub account. Without the passphrase it's unreadable, even to GitHub.</p>
       <details class="morefilters"><summary>One-time setup: create a GitHub token</summary>
         <ol class="note" style="padding-left:18px;margin:6px 0">
@@ -519,6 +521,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
         <span class="note" id="sync-status"></span>
       </div>
       <p class="note" style="margin-top:8px">If you forget the passphrase, the synced copy can't be opened. Your data on each device stays put, and you can start over with a new passphrase.</p>
+      </details>
     </div>
     <div class="panel">
       <h2>Letters to owners</h2>
@@ -2199,8 +2202,48 @@ function syncSoon() { if (!sync.cfg) return; clearTimeout(sync.timer); sync.time
 store.onset = (k) => {
   if (sync.applying) return;
   if (SYNC_SETTINGS.includes(k)) { try { localStorage.setItem('cdf_setU', JSON.stringify(Date.now())); } catch (e) { /* ignore */ } }
-  if (k === 'track' || k === 'seen' || k === 'imports' || SYNC_SETTINGS.includes(k)) syncSoon();
+  if (k === 'track' || k === 'seen' || k === 'imports' || SYNC_SETTINGS.includes(k)) { syncSoon(); cloudSoon(); }
+  if (k === 'data' && state.data) cloudPushData();
 };
+/* Cloudflare sync: automatic whenever you're logged in through Cloudflare */
+const cloud = {on: false, timer: null, busy: false, again: false};
+async function cloudGet(part) { const r = await fetch('api/sync' + (part ? '?part=' + part : ''), {cache: 'no-store', credentials: 'same-origin'}); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+async function cloudPut(body, part) { const r = await fetch('api/sync' + (part ? '?part=' + part : ''), {method: 'PUT', credentials: 'same-origin', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)}); if (!r.ok) throw new Error('HTTP ' + r.status); }
+function cloudSoon() { if (!cloud.on) return; clearTimeout(cloud.timer); cloud.timer = setTimeout(cloudRun, 2500); }
+async function cloudRun() {
+  if (!cloud.on) return;
+  if (cloud.busy) { cloud.again = true; return; }
+  cloud.busy = true;
+  try {
+    const rem = await cloudGet();
+    const changed = rem.state ? mergeRemote(rem.state) : false;
+    await cloudPut(localPayload());
+    if (changed) { rescore(); fillCities(); updateDue(); updateStarCount(); if (state.view === 'pipe') renderPipe(); }
+    setCloudStatus('Saved to your account ' + new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}));
+  } catch (e) { setCloudStatus('Could not save to your account (' + e.message + '). Will retry.', true); clearTimeout(cloud.timer); cloud.timer = setTimeout(cloudRun, 30000); }
+  finally { cloud.busy = false; if (cloud.again) { cloud.again = false; cloudSoon(); } }
+}
+async function cloudPushData() { if (!cloud.on || !state.data) return; try { await cloudPut(state.data, 'data'); } catch (e) { setCloudStatus('Lead list not saved to your account yet (' + e.message + ').', true); } }
+function setCloudStatus(msg, bad) { const e = $('cloud-status'); if (e) { e.textContent = msg; e.style.color = bad ? 'var(--bad)' : ''; } }
+async function cloudStart() {
+  let rem;
+  try { rem = await cloudGet(); } catch (e) { setCloudStatus('Off. Only works on the Cloudflare site while you\'re logged in.'); return false; }
+  if (!rem || !rem.configured) { setCloudStatus('Off. The LEADS storage isn\'t connected in Cloudflare.', true); return false; }
+  cloud.on = true;
+  let changed = rem.state ? mergeRemote(rem.state) : false;
+  // lead list: take the account's copy if this browser has none or an older one
+  if (rem.dataAt && (!state.data || rem.dataAt > state.data.fetchedAt)) {
+    setCloudStatus('Loading your saved lead list…');
+    try {
+      const d = await cloudGet('data');
+      if (d && d.fetchedAt) { sync.applying = true; state.data = d; try { localStorage.setItem('cdf_data', JSON.stringify(d)); } catch (e) { /* too big for this browser; kept in memory */ } sync.applying = false; changed = true; }
+    } catch (e) { /* keep local */ }
+  } else if (state.data && (!rem.dataAt || state.data.fetchedAt > rem.dataAt)) cloudPushData();
+  if (changed) { if (state.data) { scoreAll(); fillCities(); } state.shown = 40; renderList(); updateStatus(); updateDue(); updateStarCount(); loadRentcast(); loadAssessor(); loadWatchlist(); }
+  await cloudRun();
+  return true;
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && cloud.on) cloudRun(); });
 function renderSync(keepInputs) {
   const on = !!sync.cfg;
   $('sync-on').hidden = on; $('sync-now').hidden = !on; $('sync-off').hidden = !on;
@@ -2338,6 +2381,7 @@ $('refresh').onclick = async () => {
 
 if (state.data) { scoreAll(); fillCities(); }
 loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi(); checkAsApi(); loadWatchlist();
+cloudStart().then((on) => { if (on && !state.data) $('refresh').click(); });
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
