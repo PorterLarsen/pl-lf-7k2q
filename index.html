@@ -115,6 +115,9 @@ main{max-width:1180px;margin:0 auto;padding:16px}
 .hero::after{content:"";position:absolute;inset:auto 0 0 0;height:55%;background:linear-gradient(transparent,rgba(5,15,11,.78));pointer-events:none}
 .hero .noimg{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:13px}
 .hero .over{position:absolute;left:14px;right:14px;bottom:12px;z-index:2;color:#fff;display:flex;align-items:flex-end;gap:12px;pointer-events:none}
+.starbtn{border:0;background:none;cursor:pointer;font-size:20px;line-height:1;color:var(--muted);padding:2px 4px}.starbtn.on{color:var(--gold)}
+.hero-star{position:absolute;top:8px;right:10px;z-index:3;width:38px;height:38px;border-radius:50%;background:rgba(10,20,16,.65)!important;backdrop-filter:blur(6px);color:#fff;font-size:22px}.hero-star.on{color:var(--gold)}
+.tbl-star{font-size:17px}
 .hero .rank{position:absolute;top:12px;left:12px;z-index:2;background:rgba(10,20,16,.7);backdrop-filter:blur(6px);color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:999px}
 .hero .addr{font:600 19px/1.2 var(--display);text-shadow:0 1px 8px rgba(0,0,0,.5);letter-spacing:-.01em}
 .hero .sub{color:rgba(255,255,255,.82);font-size:12.5px}
@@ -307,6 +310,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
       <select id="f-lot" aria-label="Lot size"><option value="">Any lot size</option><option value="0-0.25">Lot under ¼ acre</option><option value="0.25-0.5">Lot ¼–½ acre</option><option value="0.5-1">Lot ½–1 acre</option><option value="1-5">Lot 1–5 acres</option><option value="5-">Lot 5+ acres</option><option value="0.25-">Lot ¼ acre or more</option><option value="0.5-">Lot ½ acre or more</option><option value="1-">Lot 1 acre or more</option></select>
       <select id="f-sqft" aria-label="Building size"><option value="">Any building size</option><option value="1-1000">Under 1,000 sq ft</option><option value="1000-1500">1,000–1,500 sq ft</option><option value="1500-2000">1,500–2,000 sq ft</option><option value="2000-3000">2,000–3,000 sq ft</option><option value="3000-">3,000+ sq ft</option><option value="0-0">No building (land)</option></select>
+      <label class="chk"><input type="checkbox" id="f-star"> ★ Starred only<span id="starcount"></span></label>
       <label class="chk"><input type="checkbox" id="f-phone"> Has phone or email</label>
       <select id="f-min" aria-label="Minimum score"><option value="0">Any score</option><option value="50">Score 50+</option><option value="60">Score 60+</option><option value="70">Score 70+</option><option value="80">Score 80+</option></select>
       <label class="chk"><input type="checkbox" id="f-ts"> Tax-sale eligible</label>
@@ -604,7 +608,7 @@ const PLAN_W = {
   rental: {distress: 1, type: 1.5, motivation: 1, location: 0.5, quality: 1, equity: 1, signals: 1, usu: 2, fit: 0.5}};
 const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', motivation: 'Owner motivation', location: 'Location',
   quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists', usu: 'Close to USU', fit: 'Fits my cash (live-in)'};
-const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
+const FILTERS = ['q', 'f-star', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
   'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
 const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
 const TEXT_SORTS = new Set(['full_address', 'city']);
@@ -1170,6 +1174,7 @@ function filtered() {
     if ($('f-new').checked && !isNew(r)) return false;
     if ($('f-otype').value && r.owner_type !== $('f-otype').value) return false;
     if (state.ui.owner && ownerKey(r) !== state.ui.owner) return false;
+    if ($('f-star').checked && !t.star) return false;
     if ($('f-phone').checked && !(r.phone || r.email)) return false;
     if ($('f-eq').value && !(r.equity_pct >= +$('f-eq').value)) return false;
     if ($('f-loan').checked && !r.loan_known) return false;
@@ -1281,6 +1286,16 @@ const ICO = {
   owner: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
   photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-8 8"/></svg>',
   tax: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>'};
+function starBtn(r, cls) {
+  const b = el('button', 'starbtn' + (cls ? ' ' + cls : '')); b.type = 'button';
+  const paint = () => { const on = !!(state.track[r.uid] || {}).star; b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; b.title = on ? 'Starred: tap to remove' : 'Star this property'; b.setAttribute('aria-label', b.title); b.setAttribute('aria-pressed', on); };
+  b.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); saveTrack(r.uid, {star: !(state.track[r.uid] || {}).star}); paint(); updateStarCount(); if ($('f-star').checked) renderList(); };
+  paint(); return b;
+}
+function updateStarCount() {
+  const n = Object.values(state.track).filter((t) => t.star).length, e = $('starcount');
+  if (e) e.textContent = n ? ` (${n})` : '';
+}
 function section(icon, label, hint, body, open) {
   const d = el('details', 'sec'); if (open) d.open = true;
   const sm = el('summary'), ic = el('span', 'ico'); ic.innerHTML = ICO[icon];
@@ -1295,7 +1310,7 @@ function card(r) {
   // hero: aerial photo of the lot with the score ring and address over it
   const hero = el('div', 'hero');
   if (r.lat && !window.CDF_NOIMG) hero.append(aerial(r, 0, true)); else hero.append(el('div', 'noimg', 'No map position yet'));
-  hero.append(el('span', 'rank', '#' + r.rank));
+  hero.append(el('span', 'rank', '#' + r.rank), starBtn(r, 'hero-star'));
   const over = el('div', 'over');
   const ring = el('div', 'ring ' + (r.score >= 75 ? 'hi' : r.score >= 60 ? 'mid' : 'lo')); ring.style.setProperty('--p', r.score); ring.title = 'Desirability score';
   ring.append(el('b', null, Math.round(r.score)));
@@ -1631,19 +1646,20 @@ function renderAssump() {
 }
 function saveTrack(id, patch) { state.track[id] = Object.assign({}, state.track[id], patch, {u: Date.now()}); store.set('track', state.track); }
 
-const TCOLS = [['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
+const TCOLS = [['star', '★'], ['rank', '#', 'n'], ['score', 'Score', 'n'], ['full_address', 'Property'], ['category', 'Type'], ['total_due', 'Owed', 'n'],
   ['years_delinquent', 'Yrs', 'n'], ['acres', 'Lot ac', 'n'], ['bldg_sqft', 'Bldg sq ft', 'n'], ['built_yr', 'Built', 'n'], ['mkt_value', 'Value', 'n'],
   ['equity_pct', 'Equity %', 'n'], ['target_offer', 'Target offer', 'n'], ['cash_needed', 'Cash to move in', 'n'], ['miles_usu', 'Mi to USU', 'n'], ['owner_type', 'Owner'], ['status', 'Status']];
 function renderTable(rows) {
   const th = $('thead');
   th.replaceChildren(...TCOLS.map(([k, label, cls]) => {
     const h = el('th', (cls || '') + (state.ui.sort === k ? ' on' : ''), label + (state.ui.sort === k ? (state.ui.dir === 'asc' ? ' ▲' : ' ▼') : ''));
-    if (k !== 'status') h.onclick = () => { if (state.ui.sort === k) state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; else { state.ui.sort = k === 'rank' ? 'score' : k; state.ui.dir = LOW_FIRST.has(k) ? 'asc' : 'desc'; } saveUi(); syncSortUi(); renderList(); };
+    if (k !== 'status' && k !== 'star') h.onclick = () => { if (state.ui.sort === k) state.ui.dir = state.ui.dir === 'asc' ? 'desc' : 'asc'; else { state.ui.sort = k === 'rank' ? 'score' : k; state.ui.dir = LOW_FIRST.has(k) ? 'asc' : 'desc'; } saveUi(); syncSortUi(); renderList(); };
     return h;
   }));
   $('tbody').replaceChildren(...rows.slice(0, state.shown).map((r) => {
     const tr = el('tr'), t = state.track[r.uid] || {};
     const td = (v, cls) => { const x = el('td', cls, v); tr.append(x); return x; };
+    const sc = el('td'); sc.append(starBtn(r, 'tbl-star')); tr.append(sc);
     td(String(r.rank), 'n'); td(r.score.toFixed(1), 'n');
     const a = el('a', null, r.full_address || r.tax_id || 'No address'); a.href = '#'; a.onclick = (ev) => { ev.preventDefault(); openLead(r.uid, true); };
     const ad = el('td'); ad.append(a); tr.append(ad);
@@ -1775,7 +1791,8 @@ function renderOwners(rows) {
   }
   box.replaceChildren(...head, ...groups.slice(0, 150).map((g) => {
     const row = el('div', 'prow owner'), left = el('div');
-    const nm = el('div', 'a', g.names.map(title).join(' / ') || 'Unknown owner');
+    const stars = g.list.filter((r) => (state.track[r.uid] || {}).star).length;
+    const nm = el('div', 'a', (stars ? '★ ' : '') + (g.names.map(title).join(' / ') || 'Unknown owner'));
     left.append(nm);
     left.append(el('div', 'm', [g.type, g.mail ? 'mails to ' + g.mail.replace(/\s+/g, ' ') : 'no mailing address'].filter(Boolean).join(' · ')));
     left.append(el('div', 'm', `${g.list.length} propert${g.list.length === 1 ? 'y' : 'ies'} · ${fmtUsd(g.due)} back taxes · ${fmtUsd(g.value)} county value · best score ${Math.round(g.best)}`));
@@ -1993,6 +2010,7 @@ function renderPipe() {
   updateDue();
   const byId = new Map(state.rows.map((r) => [r.uid, r])), td = today();
   const items = Object.entries(state.track).map(([id, t]) => ({r: byId.get(id), t})).filter((x) => x.r && x.t.status && x.t.status !== 'New' && x.t.status !== 'Pass');
+  const starredNew = Object.entries(state.track).map(([id, t]) => ({r: byId.get(id), t})).filter((x) => x.r && x.t.star && (!x.t.status || x.t.status === 'New')).map((x) => ({r: x.r, t: Object.assign({status: 'New'}, x.t)}));
   const due = items.filter((x) => x.t.next && x.t.next <= td).sort((a, b) => a.t.next.localeCompare(b.t.next));
   const up = items.filter((x) => x.t.next && x.t.next > td).sort((a, b) => a.t.next.localeCompare(b.t.next));
   const none = items.filter((x) => !x.t.next);
@@ -2000,7 +2018,7 @@ function renderPipe() {
   const k = $('pipekpis'); k.replaceChildren();
   [[due.length, 'follow-ups due'], [cnt('Researching'), 'researching'], [cnt('Contacted'), 'contacted'], [cnt('Offer made'), 'offers out']].forEach(([n, l]) => { const d = el('div', 'kpi'); d.append(el('b', null, String(n)), el('span', null, l)); k.append(d); });
   const box = $('pipelist'); box.replaceChildren();
-  if (!items.length) { box.append(el('div', 'empty', 'Nothing in your pipeline yet. Set a lead\'s status to Researching or Contacted, log a contact, or print letters from the Leads tab, and it shows up here with its follow-up date.')); return; }
+  if (!items.length && !starredNew.length) { box.append(el('div', 'empty', 'Nothing in your pipeline yet. Star a property (☆ on its photo), set a lead\'s status to Researching or Contacted, log a contact, or print letters from the Leads tab, and it shows up here with its follow-up date.')); return; }
   const group = (title2, list, cls) => {
     if (!list.length) return;
     const g = el('div', 'group'), h = el('h3', cls); h.append(document.createTextNode(title2), el('span', 'n', String(list.length))); g.append(h);
@@ -2023,7 +2041,7 @@ function renderPipe() {
     });
     box.append(g);
   };
-  group('Due now', due, 'due'); group('Coming up', up); group('No follow-up date', none);
+  group('Due now', due, 'due'); group('Coming up', up); group('No follow-up date', none); group('★ Starred, not contacted yet', starredNew);
 }
 function openLeadAnywhere(r) {
   if (!filtered().some((x) => x.uid === r.uid)) { $('f-clear').onclick(); $('q').value = r.tax_id || r.full_address || ''; saveUi(); }
@@ -2282,7 +2300,7 @@ $('batchletters').onclick = () => {
 $('me-offer').onchange = () => { state.me.offer = $('me-offer').checked; store.set('me', state.me); };
 $('me-tpl').onchange = () => { state.me.tpl = $('me-tpl').value; store.set('me', state.me); };
 $('me-reset').onclick = () => { state.me.tpl = DEFAULT_TPL; store.set('me', state.me); $('me-tpl').value = DEFAULT_TPL; };
-renderMe(); updateDue();
+renderMe(); updateDue(); updateStarCount();
 $('skip-export').onclick = () => {
   if (!state.data) { $('skip-msg').textContent = 'Tap Refresh first.'; return; }
   const {rows, skipped} = skipTraceRows();
