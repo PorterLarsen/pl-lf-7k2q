@@ -305,6 +305,8 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <select id="f-city" aria-label="City"><option value="">All cities</option></select>
       <select id="f-status" aria-label="Status"><option value="">Any status</option><option>New</option><option>Researching</option><option>Contacted</option><option>Offer made</option><option>Pass</option></select>
       <select id="f-otype" aria-label="Owner type"><option value="">Any owner type</option><option>Individual</option><option>Business</option><option>Trust</option><option>Estate</option><option>Government / church</option></select>
+      <select id="f-lot" aria-label="Lot size"><option value="">Any lot size</option><option value="0-0.25">Lot under ¼ acre</option><option value="0.25-0.5">Lot ¼–½ acre</option><option value="0.5-1">Lot ½–1 acre</option><option value="1-5">Lot 1–5 acres</option><option value="5-">Lot 5+ acres</option><option value="0.25-">Lot ¼ acre or more</option><option value="0.5-">Lot ½ acre or more</option><option value="1-">Lot 1 acre or more</option></select>
+      <select id="f-sqft" aria-label="Building size"><option value="">Any building size</option><option value="1-1000">Under 1,000 sq ft</option><option value="1000-1500">1,000–1,500 sq ft</option><option value="1500-2000">1,500–2,000 sq ft</option><option value="2000-3000">2,000–3,000 sq ft</option><option value="3000-">3,000+ sq ft</option><option value="0-0">No building (land)</option></select>
       <label class="chk"><input type="checkbox" id="f-phone"> Has phone or email</label>
       <select id="f-min" aria-label="Minimum score"><option value="0">Any score</option><option value="50">Score 50+</option><option value="60">Score 60+</option><option value="70">Score 70+</option><option value="80">Score 80+</option></select>
       <label class="chk"><input type="checkbox" id="f-ts"> Tax-sale eligible</label>
@@ -316,8 +318,6 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div class="filters">
         <label class="chk">Value $<input type="number" id="f-vmin" placeholder="min" inputmode="numeric" class="num"> to <input type="number" id="f-vmax" placeholder="max" inputmode="numeric" class="num"></label>
         <label class="chk">Owed $<input type="number" id="f-omin" placeholder="min" inputmode="numeric" class="num"> to <input type="number" id="f-omax" placeholder="max" inputmode="numeric" class="num"></label>
-        <label class="chk">Lot at least <input type="number" id="f-lot" placeholder="acres" step="0.05" inputmode="decimal" class="num"> ac</label>
-        <label class="chk">Building at least <input type="number" id="f-sqft" placeholder="sq ft" inputmode="numeric" class="num"></label>
         <label class="chk">Built <input type="number" id="f-ymin" placeholder="after" inputmode="numeric" class="num"> to <input type="number" id="f-ymax" placeholder="before" inputmode="numeric" class="num"></label>
         <select id="f-eq" aria-label="Minimum equity"><option value="">Any equity</option><option value="30">30%+ equity</option><option value="50">50%+ equity</option><option value="70">70%+ equity</option><option value="90">90%+ (likely paid off)</option></select>
         <label class="chk"><input type="checkbox" id="f-loan"> Loan balance known</label>
@@ -606,7 +606,7 @@ const W_LABELS = {distress: 'Years behind on taxes', type: 'Property type', moti
   quality: 'Lot & building', equity: 'Equity cushion', signals: 'On your imported lists', usu: 'Close to USU', fit: 'Fits my cash (live-in)'};
 const FILTERS = ['q', 'f-cat', 'f-city', 'f-status', 'f-min', 'f-ts', 'f-abs', 'f-pass', 'f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft',
   'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-otype', 'f-phone', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
-const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-lot', 'f-sqft', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
+const MORE = ['f-vmin', 'f-vmax', 'f-omin', 'f-omax', 'f-ymin', 'f-ymax', 'f-yrs', 'f-tag', 'f-oos', 'f-multi', 'f-det', 'f-new', 'f-eq', 'f-loan', 'f-fit', 'f-usu'];
 const TEXT_SORTS = new Set(['full_address', 'city']);
 const LOW_FIRST = new Set(['full_address', 'city', 'miles_usu', 'cash_needed']);
 let state = {
@@ -1142,7 +1142,7 @@ const numVal = (id) => { const v = $(id).value.trim(); return v === '' ? null : 
 
 function filtered() {
   const q = $('q').value.trim().toLowerCase(), cat = $('f-cat').value, city = $('f-city').value, st = $('f-status').value, min = +$('f-min').value;
-  const vmin = numVal('f-vmin'), vmax = numVal('f-vmax'), omin = numVal('f-omin'), omax = numVal('f-omax'), lot = numVal('f-lot'), sqft = numVal('f-sqft'),
+  const vmin = numVal('f-vmin'), vmax = numVal('f-vmax'), omin = numVal('f-omin'), omax = numVal('f-omax'), rng = (id) => { const v = $(id).value; if (!v) return null; const [a, b] = v.split('-'); return [a === '' ? null : +a, b === '' ? null : +b]; }, lot = rng('f-lot'), sqft = rng('f-sqft'),
     ymin = numVal('f-ymin'), ymax = numVal('f-ymax'), yrs = +$('f-yrs').value, tag = $('f-tag').value;
   const out = state.rows.filter((r) => {
     const t = state.track[r.uid] || {}, status = t.status || 'New';
@@ -1157,8 +1157,8 @@ function filtered() {
     if (vmax != null && !(r.mkt_value <= vmax)) return false;
     if (omin != null && !(r.total_due >= omin)) return false;
     if (omax != null && !(r.total_due <= omax)) return false;
-    if (lot != null && !(r.acres >= lot)) return false;
-    if (sqft != null && !(r.bldg_sqft >= sqft)) return false;
+    if (lot && !(r.acres != null && (lot[0] == null || r.acres >= lot[0]) && (lot[1] == null || r.acres < lot[1]))) return false;
+    if (sqft) { const q2 = r.bldg_sqft || 0; if (sqft[1] === 0 ? q2 > 0 : !((sqft[0] == null || q2 >= sqft[0]) && (sqft[1] == null || q2 < sqft[1]))) return false; }
     if (ymin != null && !(r.built_yr >= ymin)) return false;
     if (ymax != null && !(r.built_yr <= ymax)) return false;
     if (yrs && r.years_delinquent < yrs) return false;
