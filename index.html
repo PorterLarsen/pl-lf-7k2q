@@ -817,7 +817,7 @@ function buildRows() {
   const rc = (state.rc && state.rc.parcels) || {};
   const asd = (state.asr && state.asr.parcels) || {};
   state.rows.forEach((r) => {
-    r.rc = (r.tax_id && rc[r.tax_id]) || null;
+    r.rc = (r.tax_id && rc[r.tax_id]) || (state.track[r.uid] || {}).rc || null;
     r.asr = (r.tax_id && asd[r.tax_id]) || null;
     if (r.asr && r.loan_balance == null && r.asr.combined_estimated_loan_balance != null) { r.loan_balance = r.asr.combined_estimated_loan_balance; r.loan_src = 'AssessorSearch'; }
   });
@@ -1492,6 +1492,11 @@ function rcPanel(r, d) {
   const rc = r.rc;
   if (!rc) {
     box.append(el('h5', null, 'Market check'));
+    if (state.rcApi && r.full_address) {
+      const b = el('button', 'btn primary', 'Get value, rent & comparables'); b.type = 'button'; b.onclick = () => rentcastNow(r, b);
+      box.append(b, el('div', 'dealnote', `Uses 2 of your ${state.rcApi.cap} RentCast lookups this month (${state.rcApi.used || 0} used). Results are saved, so each property is only looked up once.`));
+      return box;
+    }
     box.append(el('div', 'dealnote', r.full_address ? 'No RentCast estimate yet. The monthly update covers the top leads automatically. To check this one now: copy the parcel ID, open the RentCast job on GitHub, tap "Run workflow", and paste it in.' : 'Needs a street address for a RentCast estimate.'));
     if (r.full_address && r.tax_id) {
       const a2 = el('div', 'acts'); a2.style.display = 'flex'; a2.style.gap = '6px'; a2.style.marginTop = '6px';
@@ -1825,6 +1830,20 @@ function skipTraceCsv(rows) {
 }
 /* on-demand skip tracing through the Cloudflare function (only exists on the Cloudflare site) */
 state.skipApi = null;
+state.rcApi = null;
+async function checkRcApi() {
+  try { const res = await fetch('api/rentcast', {cache: 'no-store'}); if (res.ok) { const j = await res.json(); state.rcApi = j.configured ? j : null; if (state.data) renderList(); } } catch (e) { /* not on Cloudflare */ }
+}
+const RC_TYPE = (t) => { t = String(t || '').toUpperCase(); return /CONDO/.test(t) ? 'Condo' : /TWN|TOWN/.test(t) ? 'Townhouse' : /DUP|TRI|4PLEX|MULTI|APT/.test(t) ? 'Multi-Family' : /MOBILE|MANUF/.test(t) ? 'Manufactured' : /SFR|SINGLE/.test(t) ? 'Single Family' : ''; };
+async function rentcastNow(r, btn) {
+  const [street, city] = r.full_address.split(',').map((x) => x.trim());
+  btn.disabled = true; btn.textContent = 'Looking up…';
+  const res = await fetch('api/rentcast', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: r.tax_id || r.uid, address: `${street}, ${city}, UT`, propertyType: RC_TYPE(r.bldg_type)})});
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) { alert(j.error || 'RentCast lookup failed.'); btn.disabled = false; btn.textContent = 'Try again'; return; }
+  if (j.used != null) state.rcApi = Object.assign({}, state.rcApi, {used: j.used, cap: j.cap});
+  saveTrack(r.uid, {rc: j.result}); rescore();
+}
 async function checkSkipApi() {
   try {
     const res = await fetch('api/skiptrace', {cache: 'no-store'});
@@ -2233,7 +2252,7 @@ $('refresh').onclick = async () => {
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-loadRentcast(); loadAssessor(); checkSkipApi();
+loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
