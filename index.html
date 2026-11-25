@@ -844,6 +844,29 @@ function buildRows() {
     if (r.asr && r.loan_balance == null && r.asr.combined_estimated_loan_balance != null) { r.loan_balance = r.asr.combined_estimated_loan_balance; r.loan_src = 'AssessorSearch'; }
   });
 }
+async function loadWatchlist() {
+  // properties added for you from chat (data/watchlist.json): added to "Added by me", starred, once each
+  if (!state.data) return;
+  let items = [];
+  try { const res = await fetch('data/watchlist.json?t=' + Date.now(), {cache: 'no-store'}); if (res.ok) items = await res.json(); } catch (e) { return; }
+  const done = new Set(store.get('wl_applied', []));
+  const fresh = items.filter((x) => !done.has(x.pid || x.addr));
+  if (!fresh.length) return;
+  let list = state.imports.find((l) => l.name === 'Added by me');
+  if (!list) { list = {name: 'Added by me', recs: [], added: today()}; state.imports.push(list); }
+  fresh.forEach((x) => { if (!list.recs.some((y) => (x.pid && y.pid === x.pid) || (!x.pid && y.addr === x.addr))) list.recs.push({pid: x.pid || '', addr: x.addr || '', city: x.city || '', owner: x.owner || null}); });
+  store.set('imports', state.imports);
+  const pids = fresh.map((x) => x.pid).filter(Boolean);
+  if (pids.length) { try { const det = await fetchDetails(pids); state.data.extraDetails = Object.assign({}, state.data.extraDetails, det); store.set('data', state.data); } catch (e) { /* next Refresh */ } }
+  buildRows(); scoreAll();
+  fresh.forEach((x) => {
+    const r = state.rows.find((y) => (x.pid && y.tax_id === x.pid) || (!x.pid && y.import_key === 'ADDR:' + normAddr(x.addr)));
+    if (r) { const t = state.track[r.uid] || {}; saveTrack(r.uid, {star: true, label: x.tag || t.label, note: t.note ? t.note : (x.note || '')}); }
+    done.add(x.pid || x.addr);
+  });
+  store.set('wl_applied', [...done]);
+  fillCities(); rescore(); updateStarCount();
+}
 async function loadAssessor() {
   try {
     const res = await fetch('data/assessor.json?t=' + Date.now(), {cache: 'no-store'});
@@ -2307,14 +2330,14 @@ $('refresh').onclick = async () => {
     fresh.forEach((id) => { state.seen[id] = today; });
     store.set('seen', state.seen);
     state.data = data; store.set('data', data);
-    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList(); loadRentcast(); loadAssessor();
+    scoreAll(); fillCities(); state.shown = 40; state.mapFitted = false; renderList(); loadRentcast(); loadAssessor(); loadWatchlist();
   } catch (e) {
     $('error').textContent = 'Refresh failed: ' + e.message + '. Your last saved list is still shown. Try again in a minute.'; $('error').hidden = false;
   } finally { btn.disabled = false; setProgress(0); updateStatus(); }
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi(); checkAsApi();
+loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi(); checkAsApi(); loadWatchlist();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
