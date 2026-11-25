@@ -302,6 +302,7 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
       <div class="seg" id="modeseg"><button type="button" data-m="cards">Cards</button><button type="button" data-m="table">Table</button><button type="button" data-m="owners">Owners</button></div>
       <button class="btn" id="ftoggle" type="button">Filters <span id="fcount"></span></button>
       <button class="btn" id="batchletters" type="button">Print letters</button>
+      <button class="btn" id="addprop-btn" type="button">+ Add property</button>
     </div>
     <div class="filters">
       <select id="f-cat" aria-label="Type"><option value="">All types</option><option>Home</option><option>Multi-family</option><option>Land</option><option>Commercial / mixed</option><option>Other</option></select>
@@ -336,6 +337,20 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--accent)}
         <button class="btn" id="f-clear" type="button">Clear all filters</button>
       </div>
     </details>
+    </div>
+    <div class="panel" id="addprop" hidden>
+      <h2>Add a property to your list</h2>
+      <p class="note">For homes you find elsewhere (a short sale, a listing, a tip). The parcel ID is on the county record or most listing pages ("Property ID" / "APN"); it lets the app pull the lot, building and map details.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0">
+        <div><label class="note">Parcel ID</label><input id="ap-pid" placeholder="06-081-0002" style="width:100%"></div>
+        <div><label class="note">Street address</label><input id="ap-addr" placeholder="778 E 200 N" style="width:100%"></div>
+        <div><label class="note">City</label><input id="ap-city" placeholder="Logan" style="width:100%"></div>
+        <div><label class="note">Owner name (optional)</label><input id="ap-owner" style="width:100%"></div>
+        <div><label class="note">Asking price (optional)</label><input id="ap-price" inputmode="numeric" placeholder="459000" style="width:100%"></div>
+        <div><label class="note">Label</label><input id="ap-tag" placeholder="Short sale" style="width:100%"></div>
+      </div>
+      <textarea id="ap-note" rows="2" placeholder="Notes (agent, link, status…)" style="width:100%;padding:8px;border:1px solid var(--line2);border-radius:10px;background:var(--bg)"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center"><button class="btn primary" id="ap-save" type="button">Add & star</button><button class="btn" id="ap-cancel" type="button">Cancel</button><span class="note" id="ap-msg"></span></div>
     </div>
     <div class="count" id="count"></div>
     <div id="ownerchip" hidden></div>
@@ -825,7 +840,7 @@ function buildRows() {
   const asd = (state.asr && state.asr.parcels) || {};
   state.rows.forEach((r) => {
     r.rc = (r.tax_id && rc[r.tax_id]) || (state.track[r.uid] || {}).rc || null;
-    r.asr = (r.tax_id && asd[r.tax_id]) || null;
+    r.asr = (r.tax_id && asd[r.tax_id]) || (state.track[r.uid] || {}).asr || null;
     if (r.asr && r.loan_balance == null && r.asr.combined_estimated_loan_balance != null) { r.loan_balance = r.asr.combined_estimated_loan_balance; r.loan_src = 'AssessorSearch'; }
   });
 }
@@ -1329,7 +1344,8 @@ function card(r) {
   if (r.cash_needed != null && r.cash_needed <= state.p.cash) tags.append(el('span', 'tag', 'Fits your cash'));
   if ((r.buildings || []).length > 1) tags.append(el('span', 'tag', r.buildings.length + ' buildings'));
   if (r.eff_yr && r.built_yr && r.eff_yr > r.built_yr + 5) tags.append(el('span', 'tag', 'Updated ~' + r.eff_yr));
-  r.tags.forEach((g) => tags.append(el('span', 'tag imp', g)));
+  r.tags.forEach((g) => { if (g !== 'Added by me') tags.append(el('span', 'tag imp', g)); });
+  if (t.label && !r.tags.includes(t.label)) tags.append(el('span', 'tag warn', t.label));
   if (tags.children.length) body.append(tags);
 
   const facts = el('div', 'facts');
@@ -1602,7 +1618,14 @@ function dealBlock(r) {
     kv('Owed', d.loanKnown ? fmtUsd((d.loan || 0) + d.backTaxes) : fmtUsd(d.backTaxes) + ' back taxes + unknown loan');
     kv('Equity', (d.loanKnown ? '' : 'up to ') + fmtUsd(d.equity) + ' (' + d.equityPct + '%)');
     box.append(eq);
-    box.append(rcPanel(r, d)); if (r.asr) box.append(asrPanel(r));
+    box.append(rcPanel(r, d));
+    if (r.asr) box.append(asrPanel(r));
+    else if (state.asApi && r.tax_id) {
+      const ab = el('div', 'rc'); ab.append(el('h5', null, 'Loans & ownership'));
+      const b = el('button', 'btn primary', 'Get estimated loans & equity'); b.type = 'button'; b.onclick = () => assessorNow(r, b);
+      ab.append(b, el('div', 'dealnote', `AssessorSearch: about 2–5 credits per property (${state.asApi.used || 0} of ${state.asApi.cap} used this month). Saved, so each property is looked up once.`));
+      box.append(ab);
+    }
     const t = el('table', 'offers');
     const hr = el('tr'); ['Offer', 'Price', 'Your profit', 'Owner gets in cash', 'vs. listing'].forEach((h) => hr.append(el('th', null, h)));
     t.append(hr);
@@ -1855,6 +1878,19 @@ function skipTraceCsv(rows) {
 }
 /* on-demand skip tracing through the Cloudflare function (only exists on the Cloudflare site) */
 state.skipApi = null;
+state.asApi = null;
+async function checkAsApi() {
+  try { const res = await fetch('api/assessor', {cache: 'no-store'}); if (res.ok) { const j = await res.json(); state.asApi = j.configured ? j : null; if (state.data) renderList(); } } catch (e) { /* not on Cloudflare */ }
+}
+async function assessorNow(r, btn) {
+  btn.disabled = true; btn.textContent = 'Looking up…';
+  const [street, city] = (r.full_address || '').split(',').map((x) => x.trim());
+  const res = await fetch('api/assessor', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({apn: r.tax_id, address: street, city})});
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) { alert(j.error || 'AssessorSearch lookup failed.'); btn.disabled = false; btn.textContent = 'Try again'; return; }
+  if (j.used != null) state.asApi = Object.assign({}, state.asApi, {used: j.used, cap: j.cap});
+  saveTrack(r.uid, {asr: j.result}); rescore();
+}
 state.rcApi = null;
 async function checkRcApi() {
   try { const res = await fetch('api/rentcast', {cache: 'no-store'}); if (res.ok) { const j = await res.json(); state.rcApi = j.configured ? j : null; if (state.data) renderList(); } } catch (e) { /* not on Cloudflare */ }
@@ -2278,7 +2314,7 @@ $('refresh').onclick = async () => {
 };
 
 if (state.data) { scoreAll(); fillCities(); }
-loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi();
+loadRentcast(); loadAssessor(); checkSkipApi(); checkRcApi(); checkAsApi();
 $('p-plan').onchange = () => { state.p.plan = $('p-plan').value; store.set('plan', state.p); rescore(); };
 $('p-apply').onclick = () => { state.w = Object.assign({}, PLAN_W[state.p.plan]); store.set('weights', state.w); renderWeights(); rescore(); };
 const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
@@ -2292,6 +2328,32 @@ document.querySelectorAll('#themeseg button').forEach((b) => b.onclick = () => a
 darkMQ?.addEventListener?.('change', () => { if (store.get('theme', 'auto') === 'auto') applyTheme('auto'); });
 applyTheme(store.get('theme', 'auto'));
 $('ftoggle').onclick = () => $('filterbar').classList.toggle('collapsed');
+$('addprop-btn').onclick = () => { $('addprop').hidden = !$('addprop').hidden; };
+$('ap-cancel').onclick = () => { $('addprop').hidden = true; };
+$('ap-save').onclick = async () => {
+  const pid = fmtPid($('ap-pid').value.trim()), addr = $('ap-addr').value.trim(), city = $('ap-city').value.trim();
+  if (!pid && !addr) { $('ap-msg').textContent = 'Enter a parcel ID or a street address.'; return; }
+  const tag = $('ap-tag').value.trim() || 'My list', price = num($('ap-price').value.replace(/[^\d.]/g, ''));
+  let list = state.imports.find((l) => l.name === 'Added by me');
+  if (!list) { list = {name: 'Added by me', recs: [], added: today()}; state.imports.push(list); }
+  if (!list.recs.some((x) => (pid && x.pid === pid) || (!pid && x.addr === addr))) list.recs.push({pid, addr, city, owner: $('ap-owner').value.trim() || null});
+  store.set('imports', state.imports);
+  $('ap-msg').textContent = 'Getting lot & building details…';
+  if (pid) {
+    try { const det = await fetchDetails([pid]); state.data.extraDetails = Object.assign({}, state.data.extraDetails, det); store.set('data', state.data); } catch (e) { /* details can be added on next Refresh */ }
+  }
+  buildRows(); scoreAll();
+  const r = state.rows.find((x) => (pid && x.tax_id === pid) || (!pid && x.import_key === 'ADDR:' + normAddr(addr)));
+  if (r) {
+    const note = [tag !== 'My list' ? tag : '', price ? 'Asking ' + fmtUsd(price) : '', $('ap-note').value.trim()].filter(Boolean).join(' · ');
+    saveTrack(r.uid, Object.assign({star: true, label: tag}, note ? {note} : {}));
+    if (!r.tags.includes(tag)) r.tags.push(tag);
+  }
+  fillCities(); rescore(); updateStarCount();
+  ['ap-pid', 'ap-addr', 'ap-city', 'ap-owner', 'ap-price', 'ap-tag', 'ap-note'].forEach((id) => { $(id).value = ''; });
+  $('addprop').hidden = true; $('ap-msg').textContent = '';
+  if (r) openLeadAnywhere(r);
+};
 $('batchletters').onclick = () => {
   const rows = filtered().filter((r) => r.owner_address && (state.track[r.uid] || {}).status !== 'Pass').slice(0, 50);
   if (!rows.length) { alert('No leads with a mailing address match your current filters.'); return; }
